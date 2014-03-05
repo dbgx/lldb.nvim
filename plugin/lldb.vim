@@ -2,14 +2,14 @@
 " Vim script glue code for LLDB integration
 
 function! s:FindPythonScriptDir()
-  for dir in pathogen#split(&runtimepath)
     let searchstr = "python-vim-lldb"
-    let candidates = pathogen#glob_directories(dir . "/" . searchstr)
-    if len(candidates) > 0
-      return candidates[0]
+    let plugins = split(globpath(&runtimepath, 'python-vim-lldb'), '\n')
+    echomsg plugins
+    if len(plugins) > 0
+        return plugins[0]
+    else
+        return plugins
     endif
-  endfor
-  return
 endfunction()
 
 function! s:InitLldbPlugin()
@@ -17,7 +17,7 @@ function! s:InitLldbPlugin()
     call confirm('ERROR: This Vim installation does not have python support. lldb.vim will not work.')
     return
   endif
-  
+
   " Key-Bindings
   " FIXME: choose sensible keybindings for:
   " - process: start, interrupt, continue, continue-to-cursor
@@ -43,7 +43,7 @@ function! s:InitLldbPlugin()
   " Window show/hide commands
   command -complete=custom,s:CompleteWindow -nargs=1 Lhide               python ctrl.doHide('<args>')
   command -complete=custom,s:CompleteWindow -nargs=0 Lshow               python ctrl.doShow('<args>')
- 
+
   " Launching convenience commands (no autocompletion)
   command -nargs=* Lstart                                                python ctrl.doLaunch(True,  '<args>')
   command -nargs=* Lrun                                                  python ctrl.doLaunch(False, '<args>')
@@ -80,7 +80,7 @@ function! s:InitLldbPlugin()
   command -complete=custom,s:CompleteCommand -nargs=* Ltype              python ctrl.doCommand('type', '<args>')
   command -complete=custom,s:CompleteCommand -nargs=* Lversion           python ctrl.doCommand('version', '<args>')
   command -complete=custom,s:CompleteCommand -nargs=* Lwatchpoint        python ctrl.doCommand('watchpoint', '<args>')
- 
+
   " Convenience (shortcut) LLDB commands
   command -complete=custom,s:CompleteCommand -nargs=* Lprint             python ctrl.doCommand('print', vim.eval("s:CursorWord('<args>')"))
   command -complete=custom,s:CompleteCommand -nargs=* Lpo                python ctrl.doCommand('po', vim.eval("s:CursorWord('<args>')"))
@@ -138,14 +138,14 @@ EOF
 endfunction()
 
 " Returns cword if search term is empty
-function! s:CursorWord(term) 
-  return empty(a:term) ? expand('<cword>') : a:term 
+function! s:CursorWord(term)
+  return empty(a:term) ? expand('<cword>') : a:term
 endfunction()
 
 " Returns cleaned cWORD if search term is empty
-function! s:CursorWORD(term) 
+function! s:CursorWORD(term)
   " Will strip all non-alphabetic characters from both sides
-  return empty(a:term) ?  substitute(expand('<cWORD>'), '^\A*\(.\{-}\)\A*$', '\1', '') : a:term 
+  return empty(a:term) ?  substitute(expand('<cWORD>'), '^\A*\(.\{-}\)\A*$', '\1', '') : a:term
 endfunction()
 
 call s:InitLldbPlugin()
