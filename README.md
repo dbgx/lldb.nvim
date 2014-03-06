@@ -1,4 +1,3 @@
-
 LLDB Vim Frontend
 =================
 
@@ -13,8 +12,7 @@ This plugin provides lldb debbuging integration including
 Arbitrary valid lldb commands can be invoked as well.
 
 **NOTE** : This is a fork of the plugin which is part of the llvm distribution. The original
-can be found at http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/. Currently the
-only difference is the updated README and the removal of a pathogen dependent code.
+can be found at http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/.
 
 Prerequisites
 -------------
@@ -36,4 +34,5 @@ whatever weird reason.
 Usage/Getting Help
 ------------------
 
-Please refer to the vim help for more detailed information (:he lldb).
+Please refer to the vim help for a short 'getting started' section and
+information on the available commands and configuration options. (:he lldb).
