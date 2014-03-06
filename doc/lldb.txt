@@ -1,12 +1,55 @@
 *lldb.txt* A plugin that enables debugging from your favourite editor
 
-Author:   Daniel Malea <daniel.malea@intel.com>
-License:  Same terms as Vim itself (see |license|)
+                        _                 ____    ____
+                 _   __(_)___ ___        / / /___/ / /_
+                | | / / / __ `__ \______/ / / __  / __ \
+                | |/ / / / / / / /_____/ / / /_/ / /_/ /
+                |___/_/_/ /_/ /_/     /_/_/\__,_/_.___/
 
-INTRODUCTION                                    *lldb*
+                   LLDB Debugger Ingegration For VIM
 
-Installing this plugin enables a set of commands in Vim to control the
-LLDB (http://lldb.llvm.org) debugger.
+==============================================================================
+
+CONTENTS                                                       *lldb-contents*
+
+    1. Introduction .................... |lldb-intro|
+    2. Getting Started ................. |lldb-start|
+    3. Commands ........................ |lldb-commands|
+    4. Mappings ........................ |lldb-mappings|
+    4. License ......................... |lldb-license|
+    5. Bugs ............................ |lldb-bugs|
+    6. Contributing .................... |lldb-contributing|
+
+
+Maintainer :       Tobias Pflug <tobias.pflug@gmail.com>
+Original Author:   Daniel Malea <daniel.malea@intel.com>
+License:           Same terms as Vim itself (see |license|)
+
+INTRODUCTION                                    *lldb-intro*
+
+The plugin provides an interface to the lldb debugger allowing for
+convenient debugging sessions inside your favorite editor including
+features such as breakpoints, stepping, watchpoints etc.
+
+The original plugin can be found here:
+
+http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/
+
+Credit for pretty much all current functionality goes to the original
+authors. Currently only minor modifications have been made to the
+original plugin.
+
+
+GETTING STARTED                                 *lldb-start*
+
+To quickly get started compile (don't forget to compile with debugging
+symbols) and start some program. Then open a source file belonging to the
+program in vim and execute ':Lattach <program-name>.' Then select some
+line in the source file and execute ':Lbreakpoint' to set a breakpint at
+the current line.
+
+Once the program reaches the specified breakpoint you will be able to
+inspect state and step through the proram using the commands described below.
 
 COMMANDS                                        *lldb-commands*
 
@@ -24,10 +67,10 @@ there are also commands to display or hide informational debugger panes.
 Windows can be shown or hidden using the ':Lhide <name>' or ':Lshow <name>'
 commands.
                                                 *lldb-:Lhide*
-:Lhide [windowname]     Hide informational debugger pane named 'windowname'. 
+:Lhide [windowname]     Hide informational debugger pane named 'windowname'.
 
                                                 *lldb-:Lshow*
-:Lshow [windowname]     Show informational debugger pane named 'windowname'. 
+:Lshow [windowname]     Show informational debugger pane named 'windowname'.
 
 Possible window name arguments to the Lhide and Lshow commands include:
 
@@ -64,7 +107,7 @@ Possible window name arguments to the Lhide and Lshow commands include:
                         breakpoint is hit or the process exits.
 
                                                 *lldb-:Lthread*
-:Lthread <args>         Passes through to LLDB. See :Lhelp thread. 
+:Lthread <args>         Passes through to LLDB. See :Lhelp thread.
 
                                                 *lldb-:Lstep*
 :Lstep                  Step into the current function call.
@@ -94,22 +137,37 @@ Possible window name arguments to the Lhide and Lshow commands include:
                                                 *lldb-:Lpo*
                                                 *lldb-:LpO*
 :Lprint <expr>          Aliases to the lldb print and po commands. Cursor
-:Lpo <expr>             word (cursor WORD for LpO) will be used when 
+:Lpo <expr>             word (cursor WORD for LpO) will be used when
 :LpO <expr>             expression omitted.
 
 MAPPINGS                                        *lldb-mappings*
 
-On Mac OS X (under MacVim) , the following key mappings are available:
+There are no default mappings defined by the plugin. All commands described
+above can be mapped by defining a respective variable:
 
-<Command-B>             Insert a breakpoint at the line under cursor
+    let g:lldb_map_Lframe = "<leader>f"
+
+This will map the Lframe command to "<leader>f". Other commands can be
+mapped accordingly using 'lldb_map_' + <command name>.
 
 
-ABOUT                                           *lldb-about*
+LICENSE                                         *lldb-license*
 
-Grab the latest version of this plugin (and LLDB sources) with:
-  git clone http://llvm.org/git/lldb
+Same as Vim itself.
 
-File any bugs at:
-  http://llvm.org/bugs/enter_bug.cgi?product=lldb
+BUGS                                            *lldb-bugs*
 
- vim:tw=78:et:ft=help:norl:
+If you run into a bug use the github issue tracker to report it:
+http://github.com/gilligan/vim-lldb/issues/
+
+CONTRIBUTING                                    *lldb-contributing*
+
+If you want to help out you are more then welcome to do so. In fact
+I am sure there are plenty of people out there that will do a better
+job with this plugin than me. My C skills are more than rusty. I mostly
+wanted to make this nice plugin more public and host it in a way in which
+it is easy to install with your favorite plugin manager.
+
+Long story short: Bring on your forks and pull requests.
+
+ vim:tw=78:sw=4:ft=help:norl:
