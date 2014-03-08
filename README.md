@@ -14,6 +14,8 @@ Arbitrary valid lldb commands can be invoked as well.
 **NOTE** : This is a fork of the plugin which is part of the llvm distribution. The original
 can be found at http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/.
 
+![](https://raw.github.com/gilligan/vim-lldb/master/vim-lldb.png)
+
 Prerequisites
 -------------
 
