@@ -267,8 +267,8 @@ class VimPane(object):
     # Set LLDB pane options
     vim.command("setlocal buftype=nofile") # Don't try to open a file
     vim.command("setlocal noswapfile")     # Don't use a swap file
-    vim.command("set nonumber")            # Don't display line numbers
-    #vim.command("set nowrap")              # Don't wrap text
+    vim.command("setlocal nonumber")       # Don't display line numbers
+    #vim.command("setlocal nowrap")         # Don't wrap text
 
     # Save some parameters and reference to buffer
     self.buffer = vim.current.buffer
