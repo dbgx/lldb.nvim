@@ -270,6 +270,14 @@ class VimPane(object):
     vim.command("setlocal nonumber")       # Don't display line numbers
     #vim.command("setlocal nowrap")         # Don't wrap text
 
+    # Set indentation-based folding up
+    # Based on:
+    # http://vim.wikia.com/wiki/Folding_for_plain_text_files_based_on_indentation
+    vim.command("setlocal foldmethod=expr")
+    vim.command("setlocal foldexpr=(getline(v:lnum)=~'^$')?-1:((indent(v:lnum)<indent(v:lnum+1))?('>'.indent(v:lnum+1)):indent(v:lnum))")
+    vim.command("setlocal foldtext=getline(v:foldstart)")
+    vim.command("setlocal fillchars=fold:\ ")
+
     # Save some parameters and reference to buffer
     self.buffer = vim.current.buffer
     self.width  = int( vim.eval("winwidth(0)")  )
