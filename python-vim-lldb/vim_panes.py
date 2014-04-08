@@ -459,7 +459,7 @@ class LocalsPane(FrameKeyValuePane):
     # FIXME: allow users to customize display of args/locals/statics/scope
     self.arguments = True
     self.show_locals = True
-    self.show_statics = True
+    self.show_statics = False
     self.show_in_scope_only = True
 
   def format_variable(self, var, indent = 0):
