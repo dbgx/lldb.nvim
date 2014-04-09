@@ -267,8 +267,16 @@ class VimPane(object):
     # Set LLDB pane options
     vim.command("setlocal buftype=nofile") # Don't try to open a file
     vim.command("setlocal noswapfile")     # Don't use a swap file
-    vim.command("set nonumber")            # Don't display line numbers
-    #vim.command("set nowrap")              # Don't wrap text
+    vim.command("setlocal nonumber")       # Don't display line numbers
+    #vim.command("setlocal nowrap")         # Don't wrap text
+
+    # Set indentation-based folding up
+    # Based on:
+    # http://vim.wikia.com/wiki/Folding_for_plain_text_files_based_on_indentation
+    vim.command("setlocal foldmethod=expr")
+    vim.command("setlocal foldexpr=(getline(v:lnum)=~'^$')?-1:((indent(v:lnum)<indent(v:lnum+1))?('>'.indent(v:lnum+1)):indent(v:lnum))")
+    vim.command("setlocal foldtext=getline(v:foldstart)")
+    vim.command("setlocal fillchars=fold:\ ")
 
     # Save some parameters and reference to buffer
     self.buffer = vim.current.buffer
@@ -451,17 +459,30 @@ class LocalsPane(FrameKeyValuePane):
     # FIXME: allow users to customize display of args/locals/statics/scope
     self.arguments = True
     self.show_locals = True
-    self.show_statics = True
+    self.show_statics = False
     self.show_in_scope_only = True
 
-  def format_variable(self, var):
-    """ Returns a Tuple of strings "(Type) Name", "Value" for SBValue var """
-    val = var.GetValue()
-    if val is None:
-      # If the value is too big, SBValue.GetValue() returns None; replace with ...
-      val = "..."
+  def format_variable(self, var, indent = 0):
+    """ Returns a list of tuples of strings "(Type) Name", "Value" for SBValue var
+        and its children
+    """
+    MAX_DEPTH = 6
 
-    return ("(%s) %s" % (var.GetTypeName(), var.GetName()), "%s" % val)
+    if indent > MAX_DEPTH:
+      return []
+    else:
+      val = var.GetValue()
+      if val is None:
+        # If the value is too big, SBValue.GetValue() returns None; replace with ...
+        val = "..."
+
+      children = []
+      if var.GetNumChildren() > 0:
+        for x in var:
+          children.extend(self.format_variable(x, indent + 1))
+
+      return [("%s(%s) %s" % (' ' * indent, var.GetTypeName(), var.GetName()),
+              "%s" % val)] + children
 
   def get_frame_content(self, frame):
     """ Returns list of key-value pairs of local variables in frame """
@@ -469,7 +490,12 @@ class LocalsPane(FrameKeyValuePane):
                                    self.show_locals,
                                    self.show_statics,
                                    self.show_in_scope_only)
-    return [self.format_variable(x) for x in vals]
+
+    out = []
+    for v in [self.format_variable(x) for x in vals]:
+      out.extend(v)
+
+    return out
 
 class RegistersPane(FrameKeyValuePane):
   """ Pane that displays the contents of registers """
