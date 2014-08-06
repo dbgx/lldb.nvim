@@ -25,7 +25,7 @@ Prerequisites
 Installation
 ------------
 
-Installation is easiest using a package manager such as vundle:
+Installation is easiest using a package manager such as bundle:
 
     Bundle "gilligan/vim-lldb"
 
