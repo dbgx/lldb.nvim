@@ -145,5 +145,5 @@ endfunction()
 " }}}
 
 
-call s:InitLldbPlugin()
+"call s:InitLldbPlugin()
 

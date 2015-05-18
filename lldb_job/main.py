@@ -1,11 +1,12 @@
 
 #
-# This file defines the layer that talks to lldb
+# This file defines the subprocess that connects Neovim instance with lldb
 #
 
+import check_lldb
 import os, re, sys
 import lldb
-import vim
+import neovim
 from vim_ui import UI
 
 # =================================================
@@ -110,7 +111,7 @@ class LLDBController(object):
     if not self.process:
       sys.stderr.write("No process to step")
       return
-    
+
     t = self.process.GetSelectedThread()
     if stepType == StepType.INSTRUCTION:
       t.StepInstruction(False)
@@ -144,7 +145,7 @@ class LLDBController(object):
   def doAttach(self, process_name):
     """ Handle process attach.  """
     error = lldb.SBError()
-    
+
     self.processListener = lldb.SBListener("process_event_listener")
     self.target = self.dbg.CreateTarget('')
     self.process = self.target.AttachToProcessWithName(self.processListener, process_name, False, error)
