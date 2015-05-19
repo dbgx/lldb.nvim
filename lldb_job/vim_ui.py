@@ -3,7 +3,7 @@
 
 import os, re, sys
 import lldb
-import vim
+import neovim
 from vim_panes import *
 from vim_signs import *
 
@@ -14,8 +14,9 @@ def is_same_file(a, b):
   return a in b or b in a
 
 class UI:
-  def __init__(self):
+  def __init__(self, socket):
     """ Declare UI state variables """
+    self.vim = neovim.attach('socket', path=socket)
 
     # Default panes to display
     self.defaultPanes = ['breakpoints', 'backtrace', 'locals', 'threads', 'registers', 'disassembly']
@@ -28,15 +29,21 @@ class UI:
     self.pcSigns = []
 
     # Container for panes
-    self.paneCol = PaneLayout()
+    self.paneCol = PaneLayout(self.vim)
 
     # All possible LLDB panes
-    self.backtracePane = BacktracePane(self.paneCol)
-    self.threadPane = ThreadPane(self.paneCol)
-    self.disassemblyPane = DisassemblyPane(self.paneCol)
-    self.localsPane = LocalsPane(self.paneCol)
-    self.registersPane = RegistersPane(self.paneCol)
-    self.breakPane = BreakpointsPane(self.paneCol)
+    self.backtracePane = BacktracePane(self.vim, self.paneCol)
+    self.threadPane = ThreadPane(self.vim, self.paneCol)
+    self.disassemblyPane = DisassemblyPane(self.vim, self.paneCol)
+    self.localsPane = LocalsPane(self.vim, self.paneCol)
+    self.registersPane = RegistersPane(self.vim, self.paneCol)
+    self.breakPane = BreakpointsPane(self.vim, self.paneCol)
+
+  def current_window(self):
+    return self.vim.current.window
+
+  def current_buffer(self):
+    return self.vim.current.buffer
 
   def activate(self):
     """ Activate UI: display default set of panes """
@@ -47,11 +54,11 @@ class UI:
         are not contained in the PaneLayout object self.paneCol.
     """
     ret = []
-    for w in vim.windows:
+    for w in self.vim.windows:
       b = w.buffer
       if not self.paneCol.contains(b.name):
         if filter_name is None or filter_name in b.name:
-          ret.append(b) 
+          ret.append(b)
     return ret
 
   def update_pc(self, process, buffers, goto_file):
@@ -84,10 +91,10 @@ class UI:
       self.pcSigns.remove(sign)
       del sign
 
-    # Select a user (non-lldb) window 
+    # Select a user (non-lldb) window
     if not self.paneCol.selectWindow(False):
       # No user window found; avoid clobbering by splitting
-      vim.command(":vsp")
+      self.vim.command(":vsp")
 
     # Show a PC marker for each thread
     for thread in process:
@@ -102,29 +109,29 @@ class UI:
       is_selected = thread.GetIndexID() == process.GetSelectedThread().GetIndexID()
       if len(buffers) == 1:
         buf = buffers[0]
-        if buf != vim.current.buffer:
+        if buf != self.current_buffer():
           # Vim has an open buffer to the required file: select it
-          vim.command('execute ":%db"' % buf.number)
-      elif is_selected and vim.current.buffer.name not in fname and os.path.exists(fname) and goto_file:
+          self.vim.command('execute ":%db"' % buf.number)
+      elif is_selected and self.current_buffer().name not in fname and os.path.exists(fname) and goto_file:
         # FIXME: If current buffer is modified, vim will complain when we try to switch away.
         #        Find a way to detect if the current buffer is modified, and...warn instead?
         vim.command('execute ":e %s"' % fname)
-        buf = vim.current.buffer
+        buf = self.current_buffer()
       elif len(buffers) > 1 and goto_file:
         #FIXME: multiple open buffers match PC location
         continue
       else:
         continue
 
-      self.pcSigns.append(PCSign(buf, line, is_selected))
+      self.pcSigns.append(PCSign(self.vim, buf, line, is_selected))
 
       if is_selected and goto_file:
         # if the selected file has a PC marker, move the cursor there too
-        curname = vim.current.buffer.name
+        curname = self.current_buffer().name
         if curname is not None and is_same_file(curname, fname):
-          move_cursor(line, 0)
+          move_cursor(self.vim, line, 0)
         elif move_cursor:
-          print "FIXME: not sure where to move cursor because %s != %s " % (vim.current.buffer.name, fname)
+          print "FIXME: not sure where to move cursor because %s != %s " % (self.current_buffer().name, fname)
 
   def update_breakpoints(self, target, buffers):
     """ Decorates buffer with signs corresponding to breakpoints in target. """
@@ -171,7 +178,7 @@ class UI:
         del_list.append((b, l, r))
     for d in del_list:
       del self.breakpointSigns[d]
-      
+
     # Show any signs for new breakpoints
     for (b, l, r) in needed_bps:
       bp = needed_bps[(b, l, r)]
@@ -181,7 +188,7 @@ class UI:
         self.markedBreakpoints[(b.name, l)] = [bp]
 
       if (b, l, r) not in self.breakpointSigns:
-        s = BreakpointSign(b, l, r)
+        s = BreakpointSign(self.vim, b, l, r)
         self.breakpointSigns[(b, l, r)] = s
 
   def update(self, target, status, controller, goto_file=False):
@@ -199,7 +206,7 @@ class UI:
         self.update_pc(process, self.get_user_buffers, goto_file)
 
     if status is not None and len(status) > 0:
-      print status 
+      print status
 
   def haveBreakpoint(self, file, line):
     """ Returns True if we have a breakpoint at file:line, False otherwise  """
@@ -231,5 +238,4 @@ class UI:
     self.paneCol.hide([name])
     return True
 
-global ui
-ui = UI()
+# vim:et:ts=2:sw=2

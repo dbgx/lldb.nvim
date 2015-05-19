@@ -6,7 +6,6 @@
 import check_lldb
 import os, re, sys
 import lldb
-import neovim
 from vim_ui import UI
 
 # =================================================
@@ -73,20 +72,20 @@ class LLDBController(object):
     self.dbg = lldb.SBDebugger.Create()
     self.commandInterpreter = self.dbg.GetCommandInterpreter()
 
-    self.ui = UI()
+    self.ui = UI(os.environ['NVIM_LISTEN_ADDRESS'])
 
-  def completeCommand(self, a, l, p):
-    """ Returns a list of viable completions for command a with length l and cursor at p  """
+  def completeCommand(self, arg, line, pos): # dead code
+    """ Returns a list of viable completions for line, and cursor at pos """
 
-    assert l[0] == 'L'
+    assert line[0] == 'L'
     # Remove first 'L' character that all commands start with
-    l = l[1:]
+    line = line[1:]
 
     # Adjust length as string has 1 less character
-    p = int(p) - 1
+    pos = int(pos) - 1
 
     result = lldb.SBStringList()
-    num = self.commandInterpreter.HandleCompletion(l, p, 1, -1, result)
+    num = self.commandInterpreter.HandleCompletion(line, pos, 1, -1, result)
 
     if num == -1:
       # FIXME: insert completion character... what's a completion character?
@@ -249,8 +248,8 @@ class LLDBController(object):
       show_output = False
 
       # User called us with no args, so toggle the bp under cursor
-      cw = vim.current.window
-      cb = vim.current.buffer
+      cw = self.ui.current_window()
+      cb = self.ui.current_buffer()
       name = cb.name
       line = cw.cursor[0]
 
@@ -363,23 +362,6 @@ class LLDBController(object):
         status = ""
       self.ui.update(self.target, status, self, goto_file)
 
-
-def returnCompleteCommand(a, l, p):
-  """ Returns a "\n"-separated string with possible completion results
-      for command a with length l and cursor at p.
-  """
-  separator = "\n"
-  results = ctrl.completeCommand(a, l, p)
-  vim.command('return "%s%s"' % (separator.join(results), separator))
-
-def returnCompleteWindow(a, l, p):
-  """ Returns a "\n"-separated string with possible completion results
-      for commands that expect a window name parameter (like hide/show).
-      FIXME: connect to ctrl.ui instead of hardcoding the list here
-  """
-  separator = "\n"
-  results = ['breakpoints', 'backtrace', 'disassembly', 'locals', 'threads', 'registers']
-  vim.command('return "%s%s"' % (separator.join(results), separator))
 
 global ctrl
 ctrl = LLDBController()

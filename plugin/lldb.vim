@@ -5,7 +5,7 @@
 "  License:     Same License as Vim itself
 "  --------------------------------------------------------------------
 
-if (exists('g:loaded_lldb') && g:loaded_lldb) || v:version < 703 || &cp || !has('python')
+if (exists('g:loaded_lldb') && g:loaded_lldb) || !has('nvim') || !has('python')
     finish
 endif
 let g:loaded_lldb = 1
@@ -68,79 +68,77 @@ let s:lldb_commands = [
 
 " Python module init {{{
 function! lldb#pythonInit()
-    execute 'python import sys'
-    let python_module_dir = fnameescape(globpath(&runtimepath, 'python-vim-lldb'))
-    execute 'python sys.path.append("' . python_module_dir . '")'
-    execute 'pyfile ' . python_module_dir . '/plugin.py'
+  python from lldb_interface import *
+  "execute 'python import sys'
+  "let python_module_dir = fnameescape(globpath(&runtimepath, 'lldb_job'))
+  "execute 'python sys.path.append("' . python_module_dir . '")'
+  "execute 'pyfile ' . python_module_dir . '/main.py'
 endfunction
 " }}}
 
 
 " Command registration {{{
 function! lldb#createCommands()
-    for cmd in s:lldb_commands
-        let complFun = ''
-        let nargs = ''
-        if len(cmd[1]) > 0
-            let complFun = '-complete=custom,' . cmd[1]
-        endif
-        if len(cmd[2]) > 0
-            let nargs = '-nargs=' . cmd[2]
-        endif
-        execute 'command ' . complFun . ' ' . nargs . ' ' . cmd[0] . ' python ' . cmd[3]
-    endfor
-    " hack: service the LLDB event-queue when the cursor moves
-    autocmd CursorMoved * :Lrefresh
-    autocmd CursorHold  * :Lrefresh
-    autocmd VimLeavePre * python ctrl.doExit()
+  for cmd in s:lldb_commands
+    let complFun = ''
+    let nargs = ''
+    if len(cmd[1]) > 0
+      let complFun = '-complete=custom,' . cmd[1]
+    endif
+    if len(cmd[2]) > 0
+      let nargs = '-nargs=' . cmd[2]
+    endif
+    execute 'command ' . complFun . ' ' . nargs . ' ' . cmd[0] . ' python ' . cmd[3]
+  endfor
+  autocmd VimLeavePre * python ctrl.doExit()
 endfunction
 "
 
 function lldb#createKeyMaps()
-    for cmd in s:lldb_commands
-        " only map what has been configured by the user
-        if exists('g:lldb_map_' . cmd[0])
-            execute 'nnoremap ' . eval('g:lldb_map_' . cmd[0]) . ' :' . cmd[0] . '<CR>'
-        endif
-    endfor
+  for cmd in s:lldb_commands
+    " only map what has been configured by the user
+    if exists('g:lldb_map_' . cmd[0])
+      execute 'nnoremap ' . eval('g:lldb_map_' . cmd[0]) . ' :' . cmd[0] . '<CR>'
+    endif
+  endfor
 endfunction
 
 function! s:InitLldbPlugin()
-    call lldb#pythonInit()
-    call lldb#createCommands()
-    call lldb#createKeyMaps()
+  call lldb#pythonInit()
+  call lldb#createCommands()
+  call lldb#createKeyMaps()
 endfunction()
 " }}}
 
 
 " Command Completion Functions {{{
 function! s:CompleteCommand(A, L, P)
-    python << EOF
+  python << EOF
 a = vim.eval("a:A")
 l = vim.eval("a:L")
 p = vim.eval("a:P")
-returnCompleteCommand(a, l, p)
+#returnCompleteCommand(a, l, p)
 EOF
 endfunction()
 
 function! s:CompleteWindow(A, L, P)
-    python << EOF
+  python << EOF
 a = vim.eval("a:A")
 l = vim.eval("a:L")
 p = vim.eval("a:P")
-returnCompleteWindow(a, l, p)
+#returnCompleteWindow(a, l, p)
 EOF
 endfunction()
 
 " Returns cword if search term is empty
 function! s:CursorWord(term)
-    return empty(a:term) ? expand('<cword>') : a:term
+  return empty(a:term) ? expand('<cword>') : a:term
 endfunction()
 
 " Returns cleaned cWORD if search term is empty
 function! s:CursorWORD(term)
-    " Will strip all non-alphabetic characters from both sides
-    return empty(a:term) ?  substitute(expand('<cWORD>'), '^\A*\(.\{-}\)\A*$', '\1', '') : a:term
+  " Will strip all non-alphabetic characters from both sides
+  return empty(a:term) ?  substitute(expand('<cWORD>'), '^\A*\(.\{-}\)\A*$', '\1', '') : a:term
 endfunction()
 " }}}
 
