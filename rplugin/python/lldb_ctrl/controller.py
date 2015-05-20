@@ -1,11 +1,6 @@
-
-#
-# This file defines the subprocess that connects Neovim instance with lldb
-#
-
-import check_lldb
 import os, re, sys
 import lldb
+
 from vim_ui import UI
 
 # =================================================
@@ -49,7 +44,7 @@ class StepType:
   OVER = 4
   OUT = 5
 
-class LLDBController(object):
+class LLController(object):
   """ Handles Vim and LLDB events such as commands and lldb events. """
 
   # Timeouts (sec) for waiting on new events. Because vim is not multi-threaded, we are restricted to
@@ -70,22 +65,18 @@ class LLDBController(object):
     self.load_dependent_modules = True
 
     self.dbg = lldb.SBDebugger.Create()
-    self.commandInterpreter = self.dbg.GetCommandInterpreter()
+    self.command_interpreter = self.dbg.GetCommandInterpreter()
 
-    self.ui = UI(os.environ['NVIM_LISTEN_ADDRESS'])
+    self.ui = None
 
-  def completeCommand(self, arg, line, pos): # dead code
+  def ui_init(self, vim, buffer_map):
+    self.ui = UI(vim, buffer_map)
+
+  def complete_command(self, arg, line, pos):
     """ Returns a list of viable completions for line, and cursor at pos """
 
-    assert line[0] == 'L'
-    # Remove first 'L' character that all commands start with
-    line = line[1:]
-
-    # Adjust length as string has 1 less character
-    pos = int(pos) - 1
-
     result = lldb.SBStringList()
-    num = self.commandInterpreter.HandleCompletion(line, pos, 1, -1, result)
+    num = self.command_interpreter.HandleCompletion(line, pos, 1, -1, result)
 
     if num == -1:
       # FIXME: insert completion character... what's a completion character?
@@ -100,7 +91,7 @@ class LLDBController(object):
     else:
       return []
 
-  def doStep(self, stepType):
+  def do_step(self, stepType):
     """ Perform a step command and block the UI for eventDelayStep seconds in order to process
         events on lldb's event queue.
         FIXME: if the step does not complete in eventDelayStep seconds, we relinquish control to
@@ -108,7 +99,7 @@ class LLDBController(object):
                update whenever; usually when the user moves the cursor. This is somewhat annoying.
     """
     if not self.process:
-      sys.stderr.write("No process to step")
+      self.ui.log("No process to step")
       return
 
     t = self.process.GetSelectedThread()
@@ -125,23 +116,23 @@ class LLDBController(object):
 
     self.processPendingEvents(self.eventDelayStep, True)
 
-  def doSelect(self, command, args):
-    """ Like doCommand, but suppress output when "select" is the first argument."""
+  def do_select(self, command, args):
+    """ Like do_command, but suppress output when "select" is the first argument."""
     a = args.split(' ')
-    return self.doCommand(command, args, "select" != a[0], True)
+    return self.do_command(command, args, "select" != a[0], True)
 
-  def doProcess(self, args):
-    """ Handle 'process' command. If 'launch' is requested, use doLaunch() instead
+  def do_process(self, args):
+    """ Handle 'process' command. If 'launch' is requested, use do_launch() instead
         of the command interpreter to start the inferior process.
     """
     a = args.split(' ')
     if len(args) == 0 or (len(a) > 0 and a[0] != 'launch'):
-      self.doCommand("process", args)
+      self.do_command("process", args)
       #self.ui.update(self.target, "", self)
     else:
-      self.doLaunch('-s' not in args, "")
+      self.do_launch('-s' not in args, "")
 
-  def doAttach(self, process_name):
+  def do_attach(self, process_name):
     """ Handle process attach.  """
     error = lldb.SBError()
 
@@ -149,22 +140,21 @@ class LLDBController(object):
     self.target = self.dbg.CreateTarget('')
     self.process = self.target.AttachToProcessWithName(self.processListener, process_name, False, error)
     if not error.Success():
-      sys.stderr.write("Error during attach: " + str(error))
+      self.ui.log("Error during attach: " + str(error))
       return
 
-    self.ui.activate()
     self.pid = self.process.GetProcessID()
 
     print "Attached to %s (pid=%d)" % (process_name, self.pid)
 
-  def doDetach(self):
+  def do_detach(self):
     if self.process is not None and self.process.IsValid():
       pid = self.process.GetProcessID()
       state = state_type_to_str(self.process.GetState())
       self.process.Detach()
       self.processPendingEvents(self.eventDelayLaunch)
 
-  def doLaunch(self, stop_at_entry, args):
+  def do_launch(self, stop_at_entry, args):
     """ Handle process launch.  """
     error = lldb.SBError()
 
@@ -178,7 +168,7 @@ class LLDBController(object):
     launchInfo = lldb.SBLaunchInfo(args.split(' '))
     self.process = self.target.Launch(launchInfo, error)
     if not error.Success():
-      sys.stderr.write("Error during launch: " + str(error))
+      self.ui.log("Error during launch: " + str(error))
       return
 
     # launch succeeded, store pid and add some event listeners
@@ -189,11 +179,11 @@ class LLDBController(object):
     print "Launched %s %s (pid=%d)" % (exe, args, self.pid)
 
     if not stop_at_entry:
-      self.doContinue()
+      self.do_continue()
     else:
       self.processPendingEvents(self.eventDelayLaunch)
 
-  def doTarget(self, args):
+  def do_target(self, args):
     """ Pass target command to interpreter, except if argument is not one of the valid options, or
         is create, in which case try to create a target with the argument as the executable. For example:
           target list        ==> handled by interpreter
@@ -211,7 +201,7 @@ class LLDBController(object):
 
     a = args.split(' ')
     if len(args) == 0 or (len(a) > 0 and a[0] in target_args):
-      self.doCommand("target", args)
+      self.do_command("target", args)
       return
     elif len(a) > 1 and a[0] == "create":
       exe = a[1]
@@ -221,24 +211,23 @@ class LLDBController(object):
     err = lldb.SBError()
     self.target = self.dbg.CreateTarget(exe, None, None, self.load_dependent_modules, err)
     if not self.target:
-      sys.stderr.write("Error creating target %s. %s" % (str(exe), str(err)))
+      self.ui.log("Error creating target %s. %s" % (str(exe), str(err)))
       return
 
-    self.ui.activate()
     self.ui.update(self.target, "created target %s" % str(exe), self)
 
-  def doContinue(self):
+  def do_continue(self):
     """ Handle 'contiue' command.
-        FIXME: switch to doCommand("continue", ...) to handle -i ignore-count param.
+        FIXME: switch to do_command("continue", ...) to handle -i ignore-count param.
     """
     if not self.process or not self.process.IsValid():
-      sys.stderr.write("No process to continue")
+      self.ui.log("No process to continue")
       return
 
     self.process.Continue()
     self.processPendingEvents(self.eventDelayContinue)
 
-  def doBreakpoint(self, args):
+  def do_breakpoint(self, args):
     """ Handle breakpoint command with command interpreter, except if the user calls
         "breakpoint" with no other args, in which case add a breakpoint at the line
         under the cursor.
@@ -264,57 +253,43 @@ class LLDBController(object):
     else:
       show_output = True
 
-    self.doCommand("breakpoint", args, show_output)
+    self.do_command("breakpoint", args, show_output)
     return
 
-  def doRefresh(self):
+  def do_refresh(self):
     """ process pending events and update UI on request """
     status = self.processPendingEvents()
 
-  def doShow(self, name):
-    """ handle :Lshow <name> """
-    if not name:
-      self.ui.activate()
-      return
-
-    if self.ui.showWindow(name):
-      self.ui.update(self.target, "", self)
-
-  def doHide(self, name):
-    """ handle :Lhide <name> """
-    if self.ui.hideWindow(name):
-      self.ui.update(self.target, "", self)
-
-  def doExit(self):
+  def do_exit(self):
     self.dbg.Terminate()
     self.dbg = None
 
-  def getCommandResult(self, command, command_args):
+  def get_command_result(self, command, command_args):
     """ Run cmd in the command interpreter and returns (success, output) """
     result = lldb.SBCommandReturnObject()
     cmd = "%s %s" % (command, command_args)
 
-    self.commandInterpreter.HandleCommand(cmd, result)
+    self.command_interpreter.HandleCommand(cmd, result)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
-  def doCommand(self, command, command_args, print_on_success = True, goto_file=False):
+  def do_command(self, command, command_args, print_on_success = True, goto_file=False):
     """ Run cmd in interpreter and print result (success or failure) on the vim status line. """
-    (success, output) = self.getCommandResult(command, command_args)
+    (success, output) = self.get_command_result(command, command_args)
     if success:
       self.ui.update(self.target, "", self, goto_file)
       if len(output) > 0 and print_on_success:
         print output
     else:
-      sys.stderr.write(output)
+      self.ui.log(output)
 
-  def getCommandOutput(self, command, command_args=""):
+  def get_command_output(self, command, command_args=""):
     """ runs cmd in the command interpreter andreturns (status, result) """
     result = lldb.SBCommandReturnObject()
     cmd = "%s %s" % (command, command_args)
-    self.commandInterpreter.HandleCommand(cmd, result)
+    self.command_interpreter.HandleCommand(cmd, result)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
-  def processPendingEvents(self, wait_seconds=0, goto_file=True):
+  def processPendingEvents(self, wait_seconds=0, goto_file=True): # FIXME remove this
     """ Handle any events that are queued from the inferior.
         Blocks for at most wait_seconds, or if wait_seconds == 0,
         process only events that are already queued.
@@ -362,6 +337,3 @@ class LLDBController(object):
         status = ""
       self.ui.update(self.target, status, self, goto_file)
 
-
-global ctrl
-ctrl = LLDBController()

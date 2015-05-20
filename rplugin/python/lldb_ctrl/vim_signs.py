@@ -16,7 +16,7 @@ class VimSign(object):
   # Map of {(sign_text, highlight_colour) --> sign_name}
   defined_signs = {}
 
-  def __init__(self, vim, sign_text, buffer, line_number, highlight_colour=None):
+  def __init__(self, vim, sign_text, bufnr, line_number, highlight_colour=None):
     """ Define the sign and highlight (if applicable) and show the sign. """
     self.vim = vim
 
@@ -27,8 +27,7 @@ class VimSign(object):
     else:
       name = VimSign.defined_signs[key]
 
-    self.show(name, buffer.number, line_number)
-    pass
+    self.show(name, bufnr, line_number)
 
   def define(self, sign_text, highlight_colour):
     """ Defines sign and highlight (if highlight_colour is not None). """
@@ -48,20 +47,19 @@ class VimSign(object):
   def show(self, name, buffer_number, line_number):
     self.id = VimSign.sign_id
     VimSign.sign_id += 1
-    self.vim.command("sign place %d name=%s line=%d buffer=%s" %
-            (self.id, name, line_number, buffer_number))
-    pass
+    cmd = "sign place %d name=%s line=%d buffer=%s" % (self.id, name, line_number, buffer_number)
+    print cmd
+    self.vim.command(cmd)
 
   def hide(self):
     self.vim.command("sign unplace %d" % self.id)
-    pass
 
 class BreakpointSign(VimSign):
-  def __init__(self, vim, buffer, line_number, is_resolved):
+  def __init__(self, vim, bufnr, line_number, is_resolved):
     txt = VimSign.SIGN_TEXT_BREAKPOINT_RESOLVED if is_resolved else VimSign.SIGN_TEXT_BREAKPOINT_UNRESOLVED
-    super(BreakpointSign, self).__init__(vim, txt, buffer, line_number)
+    super(BreakpointSign, self).__init__(vim, txt, bufnr, line_number)
 
 class PCSign(VimSign):
-  def __init__(self, vim, buffer, line_number, is_selected_thread):
-    super(PCSign, self).__init__(vim, VimSign.SIGN_TEXT_PC, buffer, line_number,
+  def __init__(self, vim, bufnr, line_number, is_selected_thread):
+    super(PCSign, self).__init__(vim, VimSign.SIGN_TEXT_PC, bufnr, line_number,
                                  VimSign.SIGN_HIGHLIGHT_COLOUR_PC if is_selected_thread else None)

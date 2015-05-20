@@ -21,13 +21,20 @@ http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/
 
 ## Installation
 
-Installation is easiest using a plugin manager such as vim-plug:
-
+Installation is easiest using a plugin manager such as [vim-plug](https://github.com/junegunn/vim-plug):
+```
     Plug "critiqjo/lldb.nvim"
+```
+Of course you are free to manually copy the files to your vimrc folder if you prefer
+that for whatever weird reason.
 
-Of course you are free to manually copy the files to your vimrc folder if you prefer that for
-whatever weird reason.
-
+Note: After installing (or updating) a plugin that uses Neovim's remote plugin API,
+you may have to execute:
+```
+    :UpdateRemotePlugins
+```
+which will create a manifest file which containing some mappings.
+This might already be taken care of by the plugin manager, but I'm not sure.
 
 ## Usage/Getting Help
 

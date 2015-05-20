@@ -10,138 +10,65 @@ if (exists('g:loaded_lldb') && g:loaded_lldb) || !has('nvim') || !has('python')
 endif
 let g:loaded_lldb = 1
 
-"
-" format of the command entries is as follows:
-"   [ command name , completion function, nargs, python code, keymap]
-"
-let s:lldb_commands = [
-\ ['Lhide',            's:CompleteWindow',  '1',   'ctrl.doHide("<args>")'],
-\ ['Lshow',            's:CompleteWindow',  '1',   'ctrl.doShow("<args>")'],
-\ ['Lstart',           '',                  '*',   'ctrl.doLaunch(True, "<args>")'],
-\ ['Lrun',             '',                  '*',   'ctrl.doLaunch(False, "<args>")'],
-\ ['Lattach',          '',                  '1',   'ctrl.doAttach("<args>")'],
-\ ['Ldetach',          '',                  '0',   'ctrl.doDetach()'],
-\ ['Lregexpattach',    's:CompleteCommand', '*',   'ctrl.doCommand("_regexp-attach", "<args>")'],
-\ ['Lregexpbreak',     's:CompleteCommand', '*',   'ctrl.doCommand("_regexp-break", "<args>")'],
-\ ['Lregexpbt',        's:CompleteCommand', '*',   'ctrl.doCommand("_regexp-bt", "<args>")'],
-\ ['Lregexpdown',      's:CompleteCommand', '*',   'ctrl.doCommand("_regexp-down", "<args>")'],
-\ ['Lregexptbreak',    's:CompleteCommand', '*',   'ctrl.doCommand("_regexp-tbreak", "<args>")'],
-\ ['Lregexpdisplay',   's:CompleteCommand', '*',   'ctrl.doCommand("_regexp-display", "<args>")'],
-\ ['Lregexpundisplay', 's:CompleteCommand', '*',   'ctrl.doCommand("_regexp-undisplay", "<args>")'],
-\ ['Lregexpup',        's:CompleteCommand', '*',   'ctrl.doCommand("_regexp-up", "<args>")'],
-\ ['Lapropos',         's:CompleteCommand', '*',   'ctrl.doCommand("apropos", "<args>")'],
-\ ['Lbacktrace',       's:CompleteCommand', '*',   'ctrl.doCommand("bt", "<args>")'],
-\ ['Lbreakpoint',      's:CompleteCommand', '*',   'ctrl.doBreakpoint("<args>")', '<leader>lb'],
-\ ["Lcommand",         "s:CompleteCommand", "*",   'ctrl.doCommand("command", "<args>")'],
-\ ["Ldisassemble",     "s:CompleteCommand", "*",   'ctrl.doCommand("disassemble", "<args>")'],
-\ ["Lexpression",      "s:CompleteCommand", "*",   'ctrl.doCommand("expression", "<args>")'],
-\ ["Lhelp",            "s:CompleteCommand", "*",   'ctrl.doCommand("help", "<args>")'],
-\ ["Llog",             "s:CompleteCommand", "*",   'ctrl.doCommand("log", "<args>")'],
-\ ["Lplatform",        "s:CompleteCommand", "*",   'ctrl.doCommand("platform","<args>")'],
-\ ["Lplugin",          "s:CompleteCommand", "*",   'ctrl.doCommand("plugin", "<args>")'],
-\ ["Lprocess",         "s:CompleteCommand", "*",   'ctrl.doProcess("<args>")'],
-\ ["Lregister",        "s:CompleteCommand", "*",   'ctrl.doCommand("register", "<args>")'],
-\ ["Lscript",          "s:CompleteCommand", "*",   'ctrl.doCommand("script", "<args>")'],
-\ ["Lsettings",        "s:CompleteCommand", "*",   'ctrl.doCommand("settings","<args>")'],
-\ ["Lsource",          "s:CompleteCommand", "*",   'ctrl.doCommand("source", "<args>")'],
-\ ["Ltype",            "s:CompleteCommand", "*",   'ctrl.doCommand("type", "<args>")'],
-\ ["Lversion",         "s:CompleteCommand", "*",   'ctrl.doCommand("version", "<args>")'],
-\ ["Lwatchpoint",      "s:CompleteCommand", "*",   'ctrl.doCommand("watchpoint", "<args>")'],
-\ ["Lprint",           "s:CompleteCommand", "*",   'ctrl.doCommand("print", vim.eval("s:CursorWord("<args>")"))'],
-\ ["Lpo",              "s:CompleteCommand", "*",   'ctrl.doCommand("po", vim.eval("s:CursorWord("<args>")"))'],
-\ ["LpO",              "s:CompleteCommand", "*",   'ctrl.doCommand("po", vim.eval("s:CursorWORD("<args>")"))'],
-\ ["Lbt",              "s:CompleteCommand", "*",   'ctrl.doCommand("bt", "<args>")'],
-\ ["Lframe",           "s:CompleteCommand", "*",   'ctrl.doSelect("frame", "<args>")'],
-\ ["Lup",              "s:CompleteCommand", "?",   'ctrl.doCommand("up", "<args>", print_on_success=False, goto_file=True)'],
-\ ["Ldown",            "s:CompleteCommand", "?",   'ctrl.doCommand("down", "<args>", print_on_success=False, goto_file=True)'],
-\ ["Lthread",          "s:CompleteCommand", "*",   'ctrl.doSelect("thread", "<args>")'],
-\ ["Ltarget",          "s:CompleteCommand", "*",   'ctrl.doTarget("<args>")'],
-\ ['Lcontinue',        "s:CompleteCommand", "*",   'ctrl.doContinue()', '<leader>lc'],
-\ ['Lstepinst',        "",                  "0",   'ctrl.doStep(StepType.INSTRUCTION)'],
-\ ['Lstepinstover',    "",                  "0",   'ctrl.doStep(StepType.INSTRUCTION_OVER)'],
-\ ['Lstepin',          "",                  "0",   'ctrl.doStep(StepType.INTO)'],
-\ ['Lstep',            "",                  "0",   'ctrl.doStep(StepType.INTO)', '<leader>li'],
-\ ['Lnext',            "",                  "0",   'ctrl.doStep(StepType.OVER)', '<leader>ln'],
-\ ['Lfinish',          "",                  "0",   'ctrl.doStep(StepType.OUT)'],
-\ ['Lrefresh',         "",                  "0",   'ctrl.doRefresh()', '<leader>lr']
-\]
+let g:lldb_layout_order = [ 'breakpoints', 'backtrace', 'locals', 'threads', 'registers', 'disassembly' ]
+let g:lldb_layout_cmds = 'VSSVjVjV'  " TODO: use A B L R instead of S V; use T0 for new tab at 0
+let s:buffer_map = {}
 
-" Python module init {{{
-function! lldb#pythonInit()
-  python from lldb_interface import *
-  "execute 'python import sys'
-  "let python_module_dir = fnameescape(globpath(&runtimepath, 'lldb_job'))
-  "execute 'python sys.path.append("' . python_module_dir . '")'
-  "execute 'pyfile ' . python_module_dir . '/main.py'
-endfunction
-" }}}
+function! s:NewBuffer(name, method)
+  exe 'silent ' . a:method . ' ' . a:name
+  setlocal bt=nofile noswf nonu nornu noma
+  let s:buffer_map[a:name] = bufnr('%')
+endfun
 
+function! s:LoadBuffer(nr, method)
+  let name = bufname(a:nr)
+  exe 'silent ' . a:method . ' ' . name
+endfun
 
-" Command registration {{{
-function! lldb#createCommands()
-  for cmd in s:lldb_commands
-    let complFun = ''
-    let nargs = ''
-    if len(cmd[1]) > 0
-      let complFun = '-complete=custom,' . cmd[1]
-    endif
-    if len(cmd[2]) > 0
-      let nargs = '-nargs=' . cmd[2]
-    endif
-    execute 'command ' . complFun . ' ' . nargs . ' ' . cmd[0] . ' python ' . cmd[3]
-  endfor
-  autocmd VimLeavePre * python ctrl.doExit()
-endfunction
-"
+function! LLUpdateLayout()
+  tab sp
+  tabmove 0
 
-function lldb#createKeyMaps()
-  for cmd in s:lldb_commands
-    " only map what has been configured by the user
-    if exists('g:lldb_map_' . cmd[0])
-      execute 'nnoremap ' . eval('g:lldb_map_' . cmd[0]) . ' :' . cmd[0] . '<CR>'
+  let c = g:lldb_layout_cmds
+  let o = g:lldb_layout_order
+  let w = 0
+  let is_first = len(s:buffer_map) == 0
+  for i in range(len(c))
+    if c[i] == 'V'
+      if is_first
+        call s:NewBuffer(o[w], 'vnew')
+      else
+        call s:LoadBuffer(o[w], 'vsp')
+      endif
+      let w += 1
+    elseif c[i] == 'S'
+      if is_first
+        call s:NewBuffer(o[w], 'new')
+      else
+        call s:LoadBuffer(o[w], 'sp')
+      endif
+      let w += 1
+    elseif c[i] == '-'
+      if is_first
+        call s:NewBuffer(o[w], 'e')
+        b #
+      endif
+      let w += 1
+    elseif c[i] == 'h' || c[i] == 'j' || c[i] == 'k' || c[i] == 'l'
+      exe "normal \<c-w>" . c[i]
     endif
   endfor
-endfunction
-
-function! s:InitLldbPlugin()
-  call lldb#pythonInit()
-  call lldb#createCommands()
-  call lldb#createKeyMaps()
-endfunction()
-" }}}
-
-
-" Command Completion Functions {{{
-function! s:CompleteCommand(A, L, P)
-  python << EOF
-a = vim.eval("a:A")
-l = vim.eval("a:L")
-p = vim.eval("a:P")
-#returnCompleteCommand(a, l, p)
-EOF
-endfunction()
-
-function! s:CompleteWindow(A, L, P)
-  python << EOF
-a = vim.eval("a:A")
-l = vim.eval("a:L")
-p = vim.eval("a:P")
-#returnCompleteWindow(a, l, p)
-EOF
-endfunction()
+  " TODO: make layout map { 'bufname': [tabnr, winnr] ... }
+  return s:buffer_map
+endfun
 
 " Returns cword if search term is empty
-function! s:CursorWord(term)
+function! LLCursorWord(term)
   return empty(a:term) ? expand('<cword>') : a:term
-endfunction()
+endfun
 
 " Returns cleaned cWORD if search term is empty
-function! s:CursorWORD(term)
+function! LLCursorWORD(term)
   " Will strip all non-alphabetic characters from both sides
   return empty(a:term) ?  substitute(expand('<cWORD>'), '^\A*\(.\{-}\)\A*$', '\1', '') : a:term
-endfunction()
-" }}}
-
-
-"call s:InitLldbPlugin()
-
+endfun

@@ -1,11 +1,42 @@
 
 # LLDB UI state in the Vim user interface.
+#
+# FIXME: implement WatchlistPane to displayed watched expressions
+# FIXME: define interface for interactive panes, like catching enter
+#        presses to change selected frame/thread...
+#
 
 import os, re, sys
 import lldb
 import neovim
-from vim_panes import *
 from vim_signs import *
+
+# Shamelessly copy/pasted from lldbutil.py in the test suite
+def get_description(obj, option=None):
+  """Calls lldb_obj.GetDescription() and returns a string, or None.
+  For SBTarget, SBBreakpointLocation, and SBWatchpoint lldb objects, an extra
+  option can be passed in to describe the detailed level of description
+  desired:
+      o lldb.eDescriptionLevelBrief
+      o lldb.eDescriptionLevelFull
+      o lldb.eDescriptionLevelVerbose
+  """
+  method = getattr(obj, 'GetDescription')
+  if not method:
+    return None
+  tuple = (lldb.SBTarget, lldb.SBBreakpointLocation, lldb.SBWatchpoint)
+  if isinstance(obj, tuple):
+    if option is None:
+      option = lldb.eDescriptionLevelBrief
+
+  stream = lldb.SBStream()
+  if option is None:
+    success = method(stream)
+  else:
+    success = method(stream, option)
+  if not success:
+    return None
+  return stream.GetData()
 
 def is_same_file(a, b):
   """ returns true if paths a and b are the same file """
@@ -14,12 +45,11 @@ def is_same_file(a, b):
   return a in b or b in a
 
 class UI:
-  def __init__(self, socket):
+  def __init__(self, vim, buf_map):
     """ Declare UI state variables """
-    self.vim = neovim.attach('socket', path=socket)
+    self.vim = vim #neovim.attach('socket', path=socket)
 
-    # Default panes to display
-    self.defaultPanes = ['breakpoints', 'backtrace', 'locals', 'threads', 'registers', 'disassembly']
+    self.buffer_map = buf_map
 
     # map of tuples (filename, line) --> SBBreakpoint
     self.markedBreakpoints = {}
@@ -28,16 +58,10 @@ class UI:
     self.breakpointSigns = {}
     self.pcSigns = []
 
-    # Container for panes
-    self.paneCol = PaneLayout(self.vim)
-
-    # All possible LLDB panes
-    self.backtracePane = BacktracePane(self.vim, self.paneCol)
-    self.threadPane = ThreadPane(self.vim, self.paneCol)
-    self.disassemblyPane = DisassemblyPane(self.vim, self.paneCol)
-    self.localsPane = LocalsPane(self.vim, self.paneCol)
-    self.registersPane = RegistersPane(self.vim, self.paneCol)
-    self.breakPane = BreakpointsPane(self.vim, self.paneCol)
+  def log(self, msg, level=1):
+    level_map = ['None', 'WarningMsg', 'ErrorMsg']
+    msg = msg.replace('"', '\\"').replace('\n', '\\n')
+    self.vim.command('echohl %s | echom "%s" | echohl None' % (level_map[level], msg,))
 
   def current_window(self):
     return self.vim.current.window
@@ -45,18 +69,12 @@ class UI:
   def current_buffer(self):
     return self.vim.current.buffer
 
-  def activate(self):
-    """ Activate UI: display default set of panes """
-    self.paneCol.prepare(self.defaultPanes)
-
   def get_user_buffers(self, filter_name=None):
-    """ Returns a list of buffers that are not a part of the LLDB UI. That is, they
-        are not contained in the PaneLayout object self.paneCol.
+    """ Returns a list of buffers that are not a part of the LLDB UI.
     """
     ret = []
-    for w in self.vim.windows:
-      b = w.buffer
-      if not self.paneCol.contains(b.name):
+    for b in self.vim.buffers:
+      if b.number not in self.buffer_map.keys(): #and self.vim.eval('buflisted( %d )' % b.number):
         if filter_name is None or filter_name in b.name:
           ret.append(b)
     return ret
@@ -91,11 +109,6 @@ class UI:
       self.pcSigns.remove(sign)
       del sign
 
-    # Select a user (non-lldb) window
-    if not self.paneCol.selectWindow(False):
-      # No user window found; avoid clobbering by splitting
-      self.vim.command(":vsp")
-
     # Show a PC marker for each thread
     for thread in process:
       loc = GetPCSourceLocation(thread)
@@ -108,22 +121,17 @@ class UI:
       buffers = self.get_user_buffers(fname)
       is_selected = thread.GetIndexID() == process.GetSelectedThread().GetIndexID()
       if len(buffers) == 1:
-        buf = buffers[0]
-        if buf != self.current_buffer():
-          # Vim has an open buffer to the required file: select it
-          self.vim.command('execute ":%db"' % buf.number)
-      elif is_selected and self.current_buffer().name not in fname and os.path.exists(fname) and goto_file:
-        # FIXME: If current buffer is modified, vim will complain when we try to switch away.
-        #        Find a way to detect if the current buffer is modified, and...warn instead?
-        vim.command('execute ":e %s"' % fname)
-        buf = self.current_buffer()
+        bufnr = buffers[0].number
+      elif is_selected and os.path.exists(fname) and goto_file:
+        vim.command('badd %s' % fname)
+        bufnr = vim.eval('bufnr("%s")' % fname)
       elif len(buffers) > 1 and goto_file:
         #FIXME: multiple open buffers match PC location
         continue
       else:
         continue
 
-      self.pcSigns.append(PCSign(self.vim, buf, line, is_selected))
+      self.pcSigns.append(PCSign(self.vim, bufnr, line, is_selected))
 
       if is_selected and goto_file:
         # if the selected file has a PC marker, move the cursor there too
@@ -139,7 +147,7 @@ class UI:
     def GetBreakpointLocations(bp):
       """ Returns a list of tuples (resolved, filename, line) where a breakpoint was resolved. """
       if not bp.IsValid():
-        sys.stderr.write("breakpoint is invalid, no locations")
+        self.log("breakpoint is invalid, no locations")
         return []
 
       ret = []
@@ -152,11 +160,9 @@ class UI:
           lineNum = int(match.group(2).strip())
           ret.append((loc.IsResolved(), match.group(1), lineNum))
         except ValueError as e:
-          sys.stderr.write("unable to parse breakpoint location line number: '%s'" % match.group(2))
-          sys.stderr.write(str(e))
+          self.log("unable to parse breakpoint location line number: '%s'\n%s" % (match.group(2), str(e),))
 
       return ret
-
 
     if target is None or not target.IsValid():
       return
@@ -192,18 +198,17 @@ class UI:
         self.breakpointSigns[(b, l, r)] = s
 
   def update(self, target, status, controller, goto_file=False):
-    """ Updates debugger info panels and breakpoint/pc marks and prints
-        status to the vim status line. If goto_file is True, the user's
-        cursor is moved to the source PC location in the selected frame.
+    """ Updates breakpoint/pc marks and prints status to the vim status line.
+        If goto_file is True, the user's cursor is moved to the source PC location in the selected frame.
     """
 
-    self.paneCol.update(target, controller)
+    # FIXME Update debugger info panels
     self.update_breakpoints(target, self.get_user_buffers())
 
     if target is not None and target.IsValid():
       process = target.GetProcess()
       if process is not None and process.IsValid():
-        self.update_pc(process, self.get_user_buffers, goto_file)
+        self.update_pc(process, self.get_user_buffers, goto_file) # FIXME?
 
     if status is not None and len(status) > 0:
       print status
@@ -221,21 +226,5 @@ class UI:
 
   def deleteBreakpoints(self, name, line):
     del self.markedBreakpoints[(name, line)]
-
-  def showWindow(self, name):
-    """ Shows (un-hides) window pane specified by name """
-    if not self.paneCol.havePane(name):
-      sys.stderr.write("unknown window: %s" % name)
-      return False
-    self.paneCol.prepare([name])
-    return True
-
-  def hideWindow(self, name):
-    """ Hides window pane specified by name """
-    if not self.paneCol.havePane(name):
-      sys.stderr.write("unknown window: %s" % name)
-      return False
-    self.paneCol.hide([name])
-    return True
 
 # vim:et:ts=2:sw=2

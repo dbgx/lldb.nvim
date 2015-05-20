@@ -3,7 +3,7 @@
 
 import os, sys
 
-def import_lldb():
+def probe():
   """ Find and import the lldb modules. This function tries to find the lldb module by:
       1. Simply by doing "import lldb" in case the system python installation is aware of lldb. If that fails,
       2. Executes the lldb executable pointed to by the LLDB environment variable (or if unset, the first lldb
@@ -55,7 +55,3 @@ def import_lldb():
       pass
 
   return False
-
-if not import_lldb():
-  sys.stderr.write("Unable to load lldb module. Check lldb on the path is available (or LLDB is set)")
-  sys.exit(0)
