@@ -6,37 +6,11 @@
 #        presses to change selected frame/thread...
 #
 
-import os, re, sys
+import os, re
 import lldb
 import neovim
 from vim_signs import *
-
-# Shamelessly copy/pasted from lldbutil.py in the test suite
-def get_description(obj, option=None):
-  """Calls lldb_obj.GetDescription() and returns a string, or None.
-  For SBTarget, SBBreakpointLocation, and SBWatchpoint lldb objects, an extra
-  option can be passed in to describe the detailed level of description
-  desired:
-      o lldb.eDescriptionLevelBrief
-      o lldb.eDescriptionLevelFull
-      o lldb.eDescriptionLevelVerbose
-  """
-  method = getattr(obj, 'GetDescription')
-  if not method:
-    return None
-  tuple = (lldb.SBTarget, lldb.SBBreakpointLocation, lldb.SBWatchpoint)
-  if isinstance(obj, tuple):
-    if option is None:
-      option = lldb.eDescriptionLevelBrief
-
-  stream = lldb.SBStream()
-  if option is None:
-    success = method(stream)
-  else:
-    success = method(stream, option)
-  if not success:
-    return None
-  return stream.GetData()
+from ui_helper import *
 
 def is_same_file(a, b):
   """ returns true if paths a and b are the same file """
@@ -45,11 +19,21 @@ def is_same_file(a, b):
   return a in b or b in a
 
 class UI:
+  _disasm_lines = 20 # FIXME add user customizability
+  _content_map = {
+      "disassembly": ( "command", ("disassemble", "-c %d -p" % _disasm_lines) ),
+      "breakpoints": ( "command", ("breakpoint", "list") ),
+      "threads": ( "command", ("thread", "list") ),
+      "backtrace": ( "command", ("bt", "") ),
+      "locals": ( "cb_on_target", get_locals_content ),
+      "registers": ( "cb_on_target", get_registers_content ),
+  }
+
   def __init__(self, vim, buf_map):
     """ Declare UI state variables """
     self.vim = vim #neovim.attach('socket', path=socket)
 
-    self.buffer_map = buf_map
+    self.buf_map = buf_map
 
     # map of tuples (filename, line) --> SBBreakpoint
     self.markedBreakpoints = {}
@@ -74,7 +58,7 @@ class UI:
     """
     ret = []
     for b in self.vim.buffers:
-      if b.number not in self.buffer_map.keys(): #and self.vim.eval('buflisted( %d )' % b.number):
+      if b.number not in self.buf_map.keys(): #and self.vim.eval('buflisted( %d )' % b.number):
         if filter_name is None or filter_name in b.name:
           ret.append(b)
     return ret
@@ -135,34 +119,10 @@ class UI:
 
       if is_selected and goto_file:
         # if the selected file has a PC marker, move the cursor there too
-        curname = self.current_buffer().name
-        if curname is not None and is_same_file(curname, fname):
-          move_cursor(self.vim, line, 0)
-        elif move_cursor:
-          print "FIXME: not sure where to move cursor because %s != %s " % (self.current_buffer().name, fname)
+        pass # TODO
 
   def update_breakpoints(self, target, buffers):
     """ Decorates buffer with signs corresponding to breakpoints in target. """
-
-    def GetBreakpointLocations(bp):
-      """ Returns a list of tuples (resolved, filename, line) where a breakpoint was resolved. """
-      if not bp.IsValid():
-        self.log("breakpoint is invalid, no locations")
-        return []
-
-      ret = []
-      numLocs = bp.GetNumLocations()
-      for i in range(numLocs):
-        loc = bp.GetLocationAtIndex(i)
-        desc = get_description(loc, lldb.eDescriptionLevelFull)
-        match = re.search('at\ ([^:]+):([\d]+)', desc)
-        try:
-          lineNum = int(match.group(2).strip())
-          ret.append((loc.IsResolved(), match.group(1), lineNum))
-        except ValueError as e:
-          self.log("unable to parse breakpoint location line number: '%s'\n%s" % (match.group(2), str(e),))
-
-      return ret
 
     if target is None or not target.IsValid():
       return
@@ -170,8 +130,8 @@ class UI:
     needed_bps = {}
     for bp_index in range(target.GetNumBreakpoints()):
       bp = target.GetBreakpointAtIndex(bp_index)
-      locations = GetBreakpointLocations(bp)
-      for (is_resolved, file, line) in GetBreakpointLocations(bp):
+      bplocs = get_bploc_tuples(bp, self.log)
+      for (is_resolved, file, line) in bplocs:
         for buf in buffers:
           if file in buf.name:
             needed_bps[(buf, line, is_resolved)] = bp
@@ -194,24 +154,23 @@ class UI:
         self.markedBreakpoints[(b.name, l)] = [bp]
 
       if (b, l, r) not in self.breakpointSigns:
-        s = BreakpointSign(self.vim, b, l, r)
+        s = BreakpointSign(self.vim, b.number, l, r)
         self.breakpointSigns[(b, l, r)] = s
 
-  def update(self, target, status, controller, goto_file=False):
+  def update(self, target, status, commander, goto_file=False):
     """ Updates breakpoint/pc marks and prints status to the vim status line.
         If goto_file is True, the user's cursor is moved to the source PC location in the selected frame.
     """
-
     # FIXME Update debugger info panels
     self.update_breakpoints(target, self.get_user_buffers())
 
     if target is not None and target.IsValid():
       process = target.GetProcess()
       if process is not None and process.IsValid():
-        self.update_pc(process, self.get_user_buffers, goto_file) # FIXME?
+        self.update_pc(process, self.get_user_buffers(), goto_file) # FIXME?
 
     if status is not None and len(status) > 0:
-      print status
+      self.log(status, 0)
 
   def haveBreakpoint(self, file, line):
     """ Returns True if we have a breakpoint at file:line, False otherwise  """

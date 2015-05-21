@@ -37,19 +37,18 @@ class VimSign(object):
     else:
       self.highlight_name = "highlight%d" % VimSign.name_id
       self.vim.command("highlight %s ctermbg=%s guibg=%s" %
-              (self.highlight_name, highlight_colour, highlight_colour))
+          (self.highlight_name, highlight_colour, highlight_colour))
       self.vim.command("sign define %s text=%s linehl=%s texthl=%s" %
-              (sign_name, sign_text, self.highlight_name, self.highlight_name))
+          (sign_name, sign_text, self.highlight_name, self.highlight_name))
     VimSign.defined_signs[(sign_text, highlight_colour)] = sign_name
     VimSign.name_id += 1
     return sign_name
 
-  def show(self, name, buffer_number, line_number):
+  def show(self, name, bufnr, line_number):
     self.id = VimSign.sign_id
     VimSign.sign_id += 1
-    cmd = "sign place %d name=%s line=%d buffer=%s" % (self.id, name, line_number, buffer_number)
-    print cmd
-    self.vim.command(cmd)
+    self.vim.command("sign place %d name=%s line=%d buffer=%s" %
+        (self.id, name, line_number, bufnr))
 
   def hide(self):
     self.vim.command("sign unplace %d" % self.id)
@@ -62,4 +61,5 @@ class BreakpointSign(VimSign):
 class PCSign(VimSign):
   def __init__(self, vim, bufnr, line_number, is_selected_thread):
     super(PCSign, self).__init__(vim, VimSign.SIGN_TEXT_PC, bufnr, line_number,
-                                 VimSign.SIGN_HIGHLIGHT_COLOUR_PC if is_selected_thread else None)
+                                 VimSign.SIGN_HIGHLIGHT_COLOUR_PC
+                                     if is_selected_thread else None)

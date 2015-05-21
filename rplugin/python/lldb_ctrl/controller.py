@@ -7,36 +7,6 @@ from vim_ui import UI
 # Convert some enum value to its string counterpart
 # =================================================
 
-# Shamelessly copy/pasted from lldbutil.py in the test suite
-def state_type_to_str(enum):
-  """Returns the stateType string given an enum."""
-  if enum == lldb.eStateInvalid:
-    return "invalid"
-  elif enum == lldb.eStateUnloaded:
-    return "unloaded"
-  elif enum == lldb.eStateConnected:
-    return "connected"
-  elif enum == lldb.eStateAttaching:
-    return "attaching"
-  elif enum == lldb.eStateLaunching:
-    return "launching"
-  elif enum == lldb.eStateStopped:
-    return "stopped"
-  elif enum == lldb.eStateRunning:
-    return "running"
-  elif enum == lldb.eStateStepping:
-    return "stepping"
-  elif enum == lldb.eStateCrashed:
-    return "crashed"
-  elif enum == lldb.eStateDetached:
-    return "detached"
-  elif enum == lldb.eStateExited:
-    return "exited"
-  elif enum == lldb.eStateSuspended:
-    return "suspended"
-  else:
-    raise Exception("Unknown StateType enum")
-
 class StepType:
   INSTRUCTION = 1
   INSTRUCTION_OVER = 2
@@ -128,7 +98,7 @@ class LLController(object):
     a = args.split(' ')
     if len(args) == 0 or (len(a) > 0 and a[0] != 'launch'):
       self.do_command("process", args)
-      #self.ui.update(self.target, "", self)
+      #self.ui.update(self.target, "", self.get_command_output)
     else:
       self.do_launch('-s' not in args, "")
 
@@ -145,12 +115,11 @@ class LLController(object):
 
     self.pid = self.process.GetProcessID()
 
-    print "Attached to %s (pid=%d)" % (process_name, self.pid)
+    self.ui.log("Attached to %s (pid=%d)" % (process_name, self.pid), 0)
 
   def do_detach(self):
     if self.process is not None and self.process.IsValid():
       pid = self.process.GetProcessID()
-      state = state_type_to_str(self.process.GetState())
       self.process.Detach()
       self.processPendingEvents(self.eventDelayLaunch)
 
@@ -162,7 +131,6 @@ class LLController(object):
     exe = os.path.join(fs.GetDirectory(), fs.GetFilename())
     if self.process is not None and self.process.IsValid():
       pid = self.process.GetProcessID()
-      state = state_type_to_str(self.process.GetState())
       self.process.Destroy()
 
     launchInfo = lldb.SBLaunchInfo(args.split(' '))
@@ -176,7 +144,7 @@ class LLController(object):
     self.processListener = lldb.SBListener("process_event_listener")
     self.process.GetBroadcaster().AddListener(self.processListener, lldb.SBProcess.eBroadcastBitStateChanged)
 
-    print "Launched %s %s (pid=%d)" % (exe, args, self.pid)
+    self.ui.log("Launched %s %s (pid=%d)" % (exe, args, self.pid), 0)
 
     if not stop_at_entry:
       self.do_continue()
@@ -190,16 +158,11 @@ class LLController(object):
           target create blah ==> custom creation of target 'blah'
           target blah        ==> also creates target blah
     """
-    target_args = [#"create",
-                   "delete",
-                   "list",
-                   "modules",
-                   "select",
-                   "stop-hook",
-                   "symbols",
-                   "variable"]
+    target_args = [ "delete", "list", "modules", "select",
+                   "stop-hook", "symbols", "variable" ]
 
     a = args.split(' ')
+    exe = ''
     if len(args) == 0 or (len(a) > 0 and a[0] in target_args):
       self.do_command("target", args)
       return
@@ -214,12 +177,13 @@ class LLController(object):
       self.ui.log("Error creating target %s. %s" % (str(exe), str(err)))
       return
 
-    self.ui.update(self.target, "created target %s" % str(exe), self)
+    self.ui.update(self.target, "created target %s" % str(exe), self.get_command_output)
+    return
 
   def do_continue(self):
     """ Handle 'contiue' command.
-        FIXME: switch to do_command("continue", ...) to handle -i ignore-count param.
     """
+    # FIXME: switch to do_command("continue", ...) to handle -i ignore-count param.
     if not self.process or not self.process.IsValid():
       self.ui.log("No process to continue")
       return
@@ -235,13 +199,11 @@ class LLController(object):
     a = args.split(' ')
     if len(args) == 0:
       show_output = False
-
       # User called us with no args, so toggle the bp under cursor
       cw = self.ui.current_window()
       cb = self.ui.current_buffer()
       name = cb.name
       line = cw.cursor[0]
-
       # Since the UI is responsbile for placing signs at bp locations, we have to
       # ask it if there already is one or more breakpoints at (file, line)...
       if self.ui.haveBreakpoint(name, line):
@@ -252,9 +214,7 @@ class LLController(object):
         args = "set -f %s -l %d" % (name, line)
     else:
       show_output = True
-
     self.do_command("breakpoint", args, show_output)
-    return
 
   def do_refresh(self):
     """ process pending events and update UI on request """
@@ -272,13 +232,13 @@ class LLController(object):
     self.command_interpreter.HandleCommand(cmd, result)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
-  def do_command(self, command, command_args, print_on_success = True, goto_file=False):
+  def do_command(self, command, command_args, print_on_success=True, goto_file=False):
     """ Run cmd in interpreter and print result (success or failure) on the vim status line. """
     (success, output) = self.get_command_result(command, command_args)
     if success:
-      self.ui.update(self.target, "", self, goto_file)
+      self.ui.update(self.target, "", self.get_command_output, goto_file)
       if len(output) > 0 and print_on_success:
-        print output
+        self.ui.log(output, 0)
     else:
       self.ui.log(output)
 
@@ -335,5 +295,5 @@ class LLController(object):
     else:
       if old_state == new_state:
         status = ""
-      self.ui.update(self.target, status, self, goto_file)
+      self.ui.update(self.target, status, self.get_command_output, goto_file)
 
