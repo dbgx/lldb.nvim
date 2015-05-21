@@ -47,12 +47,6 @@ class UI:
     msg = msg.replace('"', '\\"').replace('\n', '\\n')
     self.vim.command('echohl %s | echom "%s" | echohl None' % (level_map[level], msg,))
 
-  def current_window(self):
-    return self.vim.current.window
-
-  def current_buffer(self):
-    return self.vim.current.buffer
-
   def get_user_buffers(self, filter_name=None):
     """ Returns a list of buffers that are not a part of the LLDB UI.
     """
@@ -131,9 +125,9 @@ class UI:
     for bp_index in range(target.GetNumBreakpoints()):
       bp = target.GetBreakpointAtIndex(bp_index)
       bplocs = get_bploc_tuples(bp, self.log)
-      for (is_resolved, file, line) in bplocs:
+      for (is_resolved, filepath, line) in bplocs:
         for buf in buffers:
-          if file in buf.name:
+          if filepath and filepath in buf.name:
             needed_bps[(buf, line, is_resolved)] = bp
 
     # Hide any signs that correspond with disabled breakpoints
@@ -159,9 +153,23 @@ class UI:
 
   def update(self, target, status, commander, goto_file=False):
     """ Updates breakpoint/pc marks and prints status to the vim status line.
-        If goto_file is True, the user's cursor is moved to the source PC location in the selected frame.
+        If goto_file is True, the user's cursor should be (FIXME) moved to
+        the source PC location in the selected frame.
     """
-    # FIXME Update debugger info panels
+    for (buf, content) in UI._content_map.items():
+      if content[0] == 'command':
+        results = get_command_content(content[1], target, commander)
+      elif content[0] == 'cb_on_target':
+        results = content[1](target)
+      bufnr = self.buf_map[buf]
+      b = get_buffer_from_nr(self.vim.buffers, bufnr)
+      if b is None:
+        self.log('Invalid buffer map!')
+      else:
+        b.options['ma'] = True
+        b[:] = results
+        b.options['ma'] = False
+
     self.update_breakpoints(target, self.get_user_buffers())
 
     if target is not None and target.IsValid():

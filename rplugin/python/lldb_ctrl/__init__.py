@@ -14,6 +14,13 @@ class LLInterface(object):
     self.ctrl = LLController()
     vim.command('au VimLeavePre * call LLExit()')
 
+  @neovim.function('LLBreakswitch', sync=True)
+  def ll_breakswitch(self, args):
+    if len(args) != 2:
+      vim.command('echom "LLBreakswitch requires exactly 2 arguments."')
+      return
+    self.ctrl.do_breakswitch(args[0], args[1])
+
   @neovim.function('LLComplete', sync=True)
   def ll_complete(self, args):
     arg = args[0]
@@ -37,7 +44,7 @@ class LLInterface(object):
     buf_map = self.vim.eval('LLUpdateLayout()')
     self.ctrl.ui_init(self.vim, buf_map)
 
-  @neovim.command('LLrun', nargs='*')
+  @neovim.command('LLrun', nargs='*') # launch info can be passed ??
   def ll_run(self, args):
     self.ctrl.do_launch(False, ' '.join(args))
 
@@ -168,10 +175,6 @@ class LLInterface(object):
   @neovim.command('LLpO', nargs='*', sync=True, complete='custom,LLComplete') # eval='expand("<cWORD>")', sync=False
   def ll_pO(self, args):
     self.ctrl.do_command("po", vim.eval("LLCursorWORD(<args>)"))
-
-  @neovim.command('LLbt', nargs='*', complete='custom,LLComplete')
-  def ll_bt(self, args):
-    self.ctrl.do_command("bt", ' '.join(args))
 
   @neovim.command('LLframe', nargs='*', complete='custom,LLComplete')
   def ll_frame(self, args):

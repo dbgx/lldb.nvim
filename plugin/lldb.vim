@@ -72,3 +72,7 @@ function! LLCursorWORD(term)
   " Will strip all non-alphabetic characters from both sides
   return empty(a:term) ?  substitute(expand('<cWORD>'), '^\A*\(.\{-}\)\A*$', '\1', '') : a:term
 endfun
+
+" The parameters may have to be edited
+noremap <C-B> :call LLBreakswitch('<C-R>=expand('%')<CR>', <C-R>=getcurpos()[1]<CR>)
+"noremap <C-B> :call LLBreakswitch(expand('%'), getcurpos()[1])<CR>

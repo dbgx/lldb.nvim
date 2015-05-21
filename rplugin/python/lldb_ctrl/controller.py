@@ -24,9 +24,7 @@ class LLController(object):
   # Vim UI is "blocked". Lower numbers will make Vim more responsive, but LLDB will be delayed and higher
   # numbers will mean that LLDB events are processed faster, but the Vim UI may appear less responsive at
   # times.
-  eventDelayStep = 2
-  eventDelayLaunch = 1
-  eventDelayContinue = 1
+  eventDelay = 2 # FIXME see processPendingEvents()
 
   def __init__(self):
     """ Creates the LLDB SBDebugger object and initializes the UI class. """
@@ -84,7 +82,7 @@ class LLController(object):
     elif stepType == StepType.OUT:
       t.StepOut()
 
-    self.processPendingEvents(self.eventDelayStep, True)
+    self.processPendingEvents(self.eventDelay, True)
 
   def do_select(self, command, args):
     """ Like do_command, but suppress output when "select" is the first argument."""
@@ -121,7 +119,7 @@ class LLController(object):
     if self.process is not None and self.process.IsValid():
       pid = self.process.GetProcessID()
       self.process.Detach()
-      self.processPendingEvents(self.eventDelayLaunch)
+      self.processPendingEvents(self.eventDelay)
 
   def do_launch(self, stop_at_entry, args):
     """ Handle process launch.  """
@@ -149,7 +147,7 @@ class LLController(object):
     if not stop_at_entry:
       self.do_continue()
     else:
-      self.processPendingEvents(self.eventDelayLaunch)
+      self.processPendingEvents(self.eventDelay)
 
   def do_target(self, args):
     """ Pass target command to interpreter, except if argument is not one of the valid options, or
@@ -189,32 +187,21 @@ class LLController(object):
       return
 
     self.process.Continue()
-    self.processPendingEvents(self.eventDelayContinue)
+    self.processPendingEvents(self.eventDelay)
+
+  def do_breakswitch(self, filepath, line):
+    if self.ui.haveBreakpoint(filepath, line):
+      bps = self.ui.getBreakpoints(filepath, line)
+      args = "delete %s" % " ".join([str(b.GetID()) for b in bps])
+      self.ui.deleteBreakpoints(filepath, line)
+    else:
+      args = "set -f %s -l %d" % (filepath, line)
+    self.do_breakpoint(args)
 
   def do_breakpoint(self, args):
-    """ Handle breakpoint command with command interpreter, except if the user calls
-        "breakpoint" with no other args, in which case add a breakpoint at the line
-        under the cursor.
+    """ Handle breakpoint command with command interpreter.
     """
-    a = args.split(' ')
-    if len(args) == 0:
-      show_output = False
-      # User called us with no args, so toggle the bp under cursor
-      cw = self.ui.current_window()
-      cb = self.ui.current_buffer()
-      name = cb.name
-      line = cw.cursor[0]
-      # Since the UI is responsbile for placing signs at bp locations, we have to
-      # ask it if there already is one or more breakpoints at (file, line)...
-      if self.ui.haveBreakpoint(name, line):
-        bps = self.ui.getBreakpoints(name, line)
-        args = "delete %s" % " ".join([str(b.GetID()) for b in bps])
-        self.ui.deleteBreakpoints(name, line)
-      else:
-        args = "set -f %s -l %d" % (name, line)
-    else:
-      show_output = True
-    self.do_command("breakpoint", args, show_output)
+    self.do_command("breakpoint", args, True)
 
   def do_refresh(self):
     """ process pending events and update UI on request """
@@ -249,7 +236,7 @@ class LLController(object):
     self.command_interpreter.HandleCommand(cmd, result)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
-  def processPendingEvents(self, wait_seconds=0, goto_file=True): # FIXME remove this
+  def processPendingEvents(self, wait_seconds=0, goto_file=True): # FIXME replace this with a separate thread
     """ Handle any events that are queued from the inferior.
         Blocks for at most wait_seconds, or if wait_seconds == 0,
         process only events that are already queued.
