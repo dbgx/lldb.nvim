@@ -88,6 +88,10 @@ class LLInterface(object):
   def ll_help(self, args):
     self.ctrl.do_command("help", ' '.join(args))
 
+  @neovim.command('LLinterrupt', sync=True)
+  def ll_interrupt(self):
+    self.ctrl.do_interrupt()
+
   @neovim.command('LLlog', nargs='*', complete='custom,LLComplete')
   def ll_log(self, args):
     self.ctrl.do_command("log", ' '.join(args))

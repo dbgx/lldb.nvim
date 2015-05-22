@@ -59,6 +59,15 @@ class LLController(object):
     else:
       return []
 
+  def do_interrupt(self):
+    """ Sends a SIGSTOP to the process.
+    """
+    if not self.process or not self.process.IsValid():
+      self.ui.log("No valid process to interrupt.")
+      return
+    self.process.SendAsyncInterrupt()
+    self.processPendingEvents(self.eventDelay, True)
+
   def do_step(self, stepType):
     """ Perform a step command and block the UI for eventDelayStep seconds in order to process
         events on lldb's event queue.
