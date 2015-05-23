@@ -10,56 +10,64 @@ if (exists('g:loaded_lldb') && g:loaded_lldb) || !has('nvim') || !has('python')
 endif
 let g:loaded_lldb = 1
 
-let g:lldb_layout_order = [ 'breakpoints', 'backtrace', 'locals', 'threads', 'registers', 'disassembly' ]
-let g:lldb_layout_cmds = 'VSSVjVjV'  " TODO: use A B L R instead of S V; use T0 for new tab at 0
 let s:buffer_map = {}
-
-function! s:NewBuffer(name, method)
-  exe 'silent ' . a:method . ' ' . a:name
-  setlocal bt=nofile noswf nonu nornu noma
-  let s:buffer_map[a:name] = bufnr('%')
-endfun
-
-function! s:LoadBuffer(nr, method)
-  let name = bufname(a:nr)
-  exe 'silent ' . a:method . ' ' . name
-endfun
-
-function! LLUpdateLayout()
-  tab sp
-  tabmove 0
-
-  let c = g:lldb_layout_cmds
-  let o = g:lldb_layout_order
-  let w = 0
-  let is_first = len(s:buffer_map) == 0
-  for i in range(len(c))
-    if c[i] == 'V'
-      if is_first
-        call s:NewBuffer(o[w], 'vnew')
-      else
-        call s:LoadBuffer(o[w], 'vsp')
-      endif
-      let w += 1
-    elseif c[i] == 'S'
-      if is_first
-        call s:NewBuffer(o[w], 'new')
-      else
-        call s:LoadBuffer(o[w], 'sp')
-      endif
-      let w += 1
-    elseif c[i] == '-'
-      if is_first
-        call s:NewBuffer(o[w], 'e')
-        b #
-      endif
-      let w += 1
-    elseif c[i] == 'h' || c[i] == 'j' || c[i] == 'k' || c[i] == 'l'
-      exe "normal \<c-w>" . c[i]
-    endif
+let s:buffers = [ 'backtrace', 'breakpoints', 'disassembly', 'locals', 'registers', 'threads' ]
+function! LLBuffersInit()
+  for i in range(len(s:buffers))
+    let bnr = bufnr(s:buffers[i], 1)  " FIXME: add a unique prefix/suffix?
+    call setbufvar(bnr, '&bt', 'nofile')
+    call setbufvar(bnr, '&ma', 0)
+    call setbufvar(bnr, '&nu', 0)  " FIXME: may not work
+    call setbufvar(bnr, '&rnu', 0)  " FIXME: may not work
+    call setbufvar(bnr, '&swf', 0)
+    let s:buffer_map[s:buffers[i]] = bnr
   endfor
-  " TODO: make layout map { 'bufname': [tabnr, winnr] ... }
   return s:buffer_map
+endfun
+
+if !exists('g:lldb_layout_windows')
+  let g:lldb_layout_windows = s:buffers
+endif
+if !exists('g:lldb_layout_cmds')
+  let g:lldb_layout_cmds = '.TRBBRkRkR'
+endif
+function! LLUpdateLayout()
+  let code_buf = bufname('%')
+  if index(s:buffers, code_buf) >= 0
+    let code_buf = '[No Name]'
+  endif
+  let c = g:lldb_layout_cmds
+  let w = g:lldb_layout_windows
+  let ci = 0
+  let wi = 0
+  let tabi = 0
+  while ci < len(c)
+    if c[ci] == '.'
+      " Next command should create a code window
+      let bname = code_buf
+      let ci += 1
+    elseif stridx('TABLR', c[ci]) >= 0
+      let bname = w[wi]
+      let wi += 1
+    endif
+    if c[ci] == 'T'
+      exe 'tab sp ' . bname
+      exe 'tabmove ' tabi
+      let tabi += 1
+    elseif c[ci] == 'A'
+      exe 'above sp ' . bname
+    elseif c[ci] == 'B'
+      exe 'below sp ' . bname
+    elseif c[ci] == 'L'
+      exe 'above vsp ' . bname
+    elseif c[ci] == 'R'
+      exe 'below vsp ' . bname
+    elseif stridx('hjkl', c[ci]) >= 0
+      exe "normal \<c-w>" . c[ci]
+    endif
+    let ci += 1
+  endwhile
+  return tabi
 endfun
 
 " Returns cword if search term is empty

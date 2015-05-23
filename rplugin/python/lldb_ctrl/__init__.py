@@ -41,7 +41,8 @@ class LLInterface(object):
 
   @neovim.command('LLuiInit')
   def ll_ui_init(self):
-    buf_map = self.vim.eval('LLUpdateLayout()')
+    buf_map = self.vim.eval('LLBuffersInit()')
+    self.vim.eval('LLUpdateLayout()')
     self.ctrl.ui_init(self.vim, buf_map)
 
   @neovim.command('LLrun', nargs='*') # launch info can be passed ??
