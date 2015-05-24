@@ -1,5 +1,26 @@
 from lldb import eStateStopped
 
+def resolve_line_entry(le):
+  # path = os.path.join(le.GetFileSpec().GetDirectory(), le.GetFileSpec().GetFilename())
+  return (le.GetFileSpec().fullpath, le.GetLine(), le.GetColumn())
+
+def get_pc_source_loc(thread):
+  """ Returns a tuple (thread_index, file, line, column) that represents where
+      the PC sign should be placed for a thread.
+  """
+
+  frame = thread.GetSelectedFrame()
+  frame_num = frame.GetFrameID()
+  le = frame.GetLineEntry()
+  while not le.IsValid() and frame_num < thread.GetNumFrames():
+    frame_num += 1
+    le = thread.GetFrameAtIndex(frame_num).GetLineEntry()
+
+  if le.IsValid():
+    return (thread.GetIndexID(),) + resolve_line_entry(le)
+  return None
+
+
 def get_bploc_tuples(bp, logger):
   """ Returns a list of tuples (resolved, filename, line) where a breakpoint was resolved. """
   if not bp.IsValid():
@@ -11,10 +32,8 @@ def get_bploc_tuples(bp, logger):
     bploc = bp.GetLocationAtIndex(i)
     resolved = bploc.IsResolved()
 
-    line_entry = bploc.GetAddress().GetLineEntry()
-    path = line_entry.GetFileSpec().fullpath
-    line = line_entry.GetLine()
-    tupl = (resolved, path, line)
+    le_tupl = resolve_line_entry(bploc.GetAddress().GetLineEntry())
+    tupl = (resolved,) + le_tupl[:-1]
 
     locs.append(tupl)
   return locs
@@ -120,9 +139,3 @@ def get_registers_content(target):
       result.append(format_register(reg))
 
   return result
-
-def get_buffer_from_nr(buffers, nr):
-  for b in buffers:
-    if b.number == nr:
-      return b
-  return None

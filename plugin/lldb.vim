@@ -1,27 +1,28 @@
 " ---------------------------------------------------------------------
 "  File:        lldb.vim
-"  Description: LLDB Debugger Integration Plugin
-"  Maintainer:  Tobias Pflug <tobias.pflug@gmail.com>
-"  License:     Same License as Vim itself
+"  Maintainer:  John C F <john.ch.fr@gmail.com>
 "  --------------------------------------------------------------------
 
 if (exists('g:loaded_lldb') && g:loaded_lldb) || !has('nvim') || !has('python')
-    finish
+  finish
 endif
 let g:loaded_lldb = 1
 
 let s:buffer_map = {}
 let s:buffers = [ 'backtrace', 'breakpoints', 'disassembly', 'locals', 'registers', 'threads' ]
 function! LLBuffersInit()
+  let u_bnr = bufnr('%')
   for i in range(len(s:buffers))
     let bnr = bufnr(s:buffers[i], 1)  " FIXME: add a unique prefix/suffix?
     call setbufvar(bnr, '&bt', 'nofile')
-    call setbufvar(bnr, '&ma', 0)
-    call setbufvar(bnr, '&nu', 0)  " FIXME: may not work
-    call setbufvar(bnr, '&rnu', 0)  " FIXME: may not work
     call setbufvar(bnr, '&swf', 0)
+    call setbufvar(bnr, '&ma', 0)
+    exe 'b ' . bnr
+    call setbufvar(bnr, '&nu', 0)
+    call setbufvar(bnr, '&rnu', 0)
     let s:buffer_map[s:buffers[i]] = bnr
   endfor
+  exe 'b ' . u_bnr
   return s:buffer_map
 endfun
 
@@ -32,6 +33,9 @@ if !exists('g:lldb_layout_cmds')
   let g:lldb_layout_cmds = '.TRBBRkRkR'
 endif
 function! LLUpdateLayout()
+  if empty(s:buffer_map)
+    call LLBuffersInit()
+  endif
   let code_buf = bufname('%')
   if index(s:buffers, code_buf) >= 0
     let code_buf = '[No Name]'
@@ -70,17 +74,26 @@ function! LLUpdateLayout()
   return tabi
 endfun
 
-" Returns cword if search term is empty
-function! LLCursorWord(term)
-  return empty(a:term) ? expand('<cword>') : a:term
+" Shamelessly copy/pasted from neovim/contrib/neovim_gdb/neovim_gdb.vim
+function! LLGetExpression()
+  let [lnum1, col1] = getpos("'<")[1:2]
+  let [lnum2, col2] = getpos("'>")[1:2]
+  let lines = getline(lnum1, lnum2)
+  let lines[-1] = lines[-1][:col2 - 1]
+  let lines[0] = lines[0][col1 - 1:]
+  return join(lines, "\n")
 endfun
 
-" Returns cleaned cWORD if search term is empty
-function! LLCursorWORD(term)
-  " Will strip all non-alphabetic characters from both sides
-  return empty(a:term) ?  substitute(expand('<cWORD>'), '^\A*\(.\{-}\)\A*$', '\1', '') : a:term
-endfun
+nnoremap <M-b> :call LLBreakswitch(bufnr('%'), getcurpos()[1])<CR>
+nnoremap <F5> :LLrefresh<CR>
+nnoremap <S-F5> :call LLUpdateLayout()<CR>
+nnoremap <F8> :LLcontinue<CR>
+nnoremap <F9> :LLprint <C-R>=expand('<cword>')<CR>
+nnoremap <S-F9> :LLpo <C-R>=expand('<cword>')<CR>
+vnoremap <F9> :<C-U>LLprint <C-R>=LLGetExpression()<CR>
+vnoremap <S-F9> :<C-U>LLpo <C-R>=LLGetExpression()<CR>
 
-" The parameters may have to be edited
-noremap <C-B> :call LLBreakswitch('<C-R>=expand('%')<CR>', <C-R>=getcurpos()[1]<CR>)
-"noremap <C-B> :call LLBreakswitch(expand('%'), getcurpos()[1])<CR>
+hi ll_hi_pc ctermbg=darkblue guibg=darkblue
+sign define ll_sign_bp_res text=B>
+sign define ll_sign_bp_unres text=b>
+sign define ll_sign_pc text=-> linehl=ll_hi_pc texthl=ll_hi_pc

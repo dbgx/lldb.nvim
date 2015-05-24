@@ -7,8 +7,6 @@
 #
 
 import os, re
-import lldb
-import neovim
 from vim_signs import *
 from ui_helper import *
 
@@ -29,11 +27,11 @@ class UI:
       "registers": ( "cb_on_target", get_registers_content ),
   }
 
-  def __init__(self, vim, buf_map):
+  def __init__(self, vifx):
     """ Declare UI state variables """
-    self.vim = vim #neovim.attach('socket', path=socket)
+    self.vifx = vifx
 
-    self.buf_map = buf_map
+    self.buf_map = {}
 
     # map of tuples (filename, line) --> SBBreakpoint
     self.markedBreakpoints = {}
@@ -42,41 +40,23 @@ class UI:
     self.breakpointSigns = {}
     self.pcSigns = []
 
-  def log(self, msg, level=1):
-    level_map = ['None', 'WarningMsg', 'ErrorMsg']
-    msg = msg.replace('"', '\\"').replace('\n', '\\n')
-    self.vim.command('echohl %s | echom "%s" | echohl None' % (level_map[level], msg,))
+  def buf_map_check(self):
+    if not self.buf_map:
+      self.buf_map = self.vifx.buf_init()
 
   def get_user_buffers(self, filter_name=None):
     """ Returns a list of buffers that are not a part of the LLDB UI.
     """
     ret = []
-    for b in self.vim.buffers:
-      if b.number not in self.buf_map.keys(): #and self.vim.eval('buflisted( %d )' % b.number):
+    self.buf_map_check()
+    for b in self.vifx.get_buffers():
+      if b.number not in self.buf_map.keys(): #and b.options['buflisted']
         if filter_name is None or filter_name in b.name:
           ret.append(b)
     return ret
 
-  def update_pc(self, process, buffers, goto_file):
+  def update_pc(self, process, goto_file):
     """ Place the PC sign on the PC location of each thread's selected frame """
-
-    def GetPCSourceLocation(thread):
-      """ Returns a tuple (thread_index, file, line, column) that represents where
-          the PC sign should be placed for a thread.
-      """
-
-      frame = thread.GetSelectedFrame()
-      frame_num = frame.GetFrameID()
-      le = frame.GetLineEntry()
-      while not le.IsValid() and frame_num < thread.GetNumFrames():
-        frame_num += 1
-        le = thread.GetFrameAtIndex(frame_num).GetLineEntry()
-
-      if le.IsValid():
-        path = os.path.join(le.GetFileSpec().GetDirectory(), le.GetFileSpec().GetFilename())
-        return (thread.GetIndexID(), path, le.GetLine(), le.GetColumn())
-      return None
-
 
     # Clear all existing PC signs
     del_list = []
@@ -89,29 +69,22 @@ class UI:
 
     # Show a PC marker for each thread
     for thread in process:
-      loc = GetPCSourceLocation(thread)
+      loc = get_pc_source_loc(thread)
       if not loc:
         # no valid source locations for PCs. hide all existing PC markers
         continue
 
       buf = None
       (tid, fname, line, col) = loc
-      buffers = self.get_user_buffers(fname)
       is_selected = thread.GetIndexID() == process.GetSelectedThread().GetIndexID()
-      if len(buffers) == 1:
-        bufnr = buffers[0].number
-      elif is_selected and os.path.exists(fname) and goto_file:
-        vim.command('badd %s' % fname)
-        bufnr = vim.eval('bufnr("%s")' % fname)
-      elif len(buffers) > 1 and goto_file:
-        #FIXME: multiple open buffers match PC location
-        continue
+      if is_selected and os.path.exists(fname):
+        bufnr = self.vifx.buffer_add(fname)
       else:
         continue
 
-      self.pcSigns.append(PCSign(self.vim, bufnr, line, is_selected))
+      self.pcSigns.append(PCSign(self.vifx, bufnr, line, is_selected))
 
-      if is_selected and goto_file:
+      if bufnr and is_selected and goto_file:
         # if the selected file has a PC marker, move the cursor there too
         pass # TODO
 
@@ -124,7 +97,7 @@ class UI:
     needed_bps = {}
     for bp_index in range(target.GetNumBreakpoints()):
       bp = target.GetBreakpointAtIndex(bp_index)
-      bplocs = get_bploc_tuples(bp, self.log)
+      bplocs = get_bploc_tuples(bp, self.vifx.log)
       for (is_resolved, filepath, line) in bplocs:
         for buf in buffers:
           if filepath and filepath in buf.name:
@@ -148,7 +121,7 @@ class UI:
         self.markedBreakpoints[(b.name, l)] = [bp]
 
       if (b, l, r) not in self.breakpointSigns:
-        s = BreakpointSign(self.vim, b.number, l, r)
+        s = BreakpointSign(self.vifx, b.number, l, r)
         self.breakpointSigns[(b, l, r)] = s
 
   def update(self, target, status, commander, goto_file=False):
@@ -156,15 +129,16 @@ class UI:
         If goto_file is True, the user's cursor should be (FIXME) moved to
         the source PC location in the selected frame.
     """
+    self.buf_map_check()
     for (buf, content) in UI._content_map.items():
       if content[0] == 'command':
         results = get_command_content(content[1], target, commander)
       elif content[0] == 'cb_on_target':
         results = content[1](target)
       bufnr = self.buf_map[buf]
-      b = get_buffer_from_nr(self.vim.buffers, bufnr)
+      b = self.vifx.get_buffer_from_nr(bufnr)
       if b is None:
-        self.log('Invalid buffer map!')
+        self.vifx.log('Invalid buffer map!')
       else:
         b.options['ma'] = True
         b[:] = results
@@ -175,10 +149,10 @@ class UI:
     if target is not None and target.IsValid():
       process = target.GetProcess()
       if process is not None and process.IsValid():
-        self.update_pc(process, self.get_user_buffers(), goto_file) # FIXME?
+        self.update_pc(process, goto_file)
 
     if status is not None and len(status) > 0:
-      self.log(status, 0)
+      self.vifx.log(status, 0)
 
   def haveBreakpoint(self, file, line):
     """ Returns True if we have a breakpoint at file:line, False otherwise  """

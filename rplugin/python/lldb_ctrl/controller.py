@@ -3,10 +3,6 @@ import lldb
 
 from vim_ui import UI
 
-# =================================================
-# Convert some enum value to its string counterpart
-# =================================================
-
 class StepType:
   INSTRUCTION = 1
   INSTRUCTION_OVER = 2
@@ -15,18 +11,14 @@ class StepType:
   OUT = 5
 
 class LLController(object):
-  """ Handles Vim and LLDB events such as commands and lldb events. """
+  """ Handles LLDB events and commands. """
 
-  # Timeouts (sec) for waiting on new events. Because vim is not multi-threaded, we are restricted to
-  # servicing LLDB events from the main UI thread. Usually, we only process events that are already
-  # sitting on the queue. But in some situations (when we are expecting an event as a result of some
-  # user interaction) we want to wait for it. The constants below set these wait period in which the
-  # Vim UI is "blocked". Lower numbers will make Vim more responsive, but LLDB will be delayed and higher
-  # numbers will mean that LLDB events are processed faster, but the Vim UI may appear less responsive at
-  # times.
+  # Timeout (sec) for waiting on new events. Due to the current single threaded design,
+  # we should wait a few seconds for any new event, and update vim buffers. After which,
+  # the user will have to manually request an update (using :LLrefresh).
   eventDelay = 2 # FIXME see processPendingEvents()
 
-  def __init__(self):
+  def __init__(self, vifx):
     """ Creates the LLDB SBDebugger object and initializes the UI class. """
     self.target = None
     self.process = None
@@ -35,10 +27,8 @@ class LLController(object):
     self.dbg = lldb.SBDebugger.Create()
     self.command_interpreter = self.dbg.GetCommandInterpreter()
 
-    self.ui = None
-
-  def ui_init(self, vim, buffer_map):
-    self.ui = UI(vim, buffer_map)
+    self.vifx = vifx
+    self.ui = UI(vifx)
 
   def complete_command(self, arg, line, pos):
     """ Returns a list of viable completions for line, and cursor at pos """
@@ -59,24 +49,13 @@ class LLController(object):
     else:
       return []
 
-  def do_interrupt(self):
-    """ Sends a SIGSTOP to the process.
-    """
-    if not self.process or not self.process.IsValid():
-      self.ui.log("No valid process to interrupt.")
-      return
-    self.process.SendAsyncInterrupt()
-    self.processPendingEvents(self.eventDelay, True)
-
   def do_step(self, stepType):
-    """ Perform a step command and block the UI for eventDelayStep seconds in order to process
-        events on lldb's event queue.
-        FIXME: if the step does not complete in eventDelayStep seconds, we relinquish control to
-               the main thread to avoid the appearance of a "hang". If this happens, the UI will
-               update whenever; usually when the user moves the cursor. This is somewhat annoying.
+    """ Perform a step command.
+        FIXME: if the step does not complete in eventDelay seconds, we relinquish control to
+               the main thread, after which the user will have to manually request to update UI.
     """
     if not self.process:
-      self.ui.log("No process to step")
+      self.vifx.log("No process to step")
       return
 
     t = self.process.GetSelectedThread()
@@ -99,15 +78,42 @@ class LLController(object):
     return self.do_command(command, args, "select" != a[0], True)
 
   def do_process(self, args):
-    """ Handle 'process' command. If 'launch' is requested, use do_launch() instead
-        of the command interpreter to start the inferior process.
+    """ Handle 'process' command.
     """
-    a = args.split(' ')
-    if len(args) == 0 or (len(a) > 0 and a[0] != 'launch'):
-      self.do_command("process", args)
-      #self.ui.update(self.target, "", self.get_command_output)
+    if args.startswith("la"): # launch
+      if self.process is not None and self.process.IsValid():
+        pid = self.process.GetProcessID()
+        self.process.Destroy()
+
+      (success, result) = self.get_command_result("process", args)
+      self.process = self.target.process
+      if not success:
+        self.vifx.log("Error during launch: " + str(result))
+        return
+
+      # launch succeeded, store pid and add some event listeners
+      self.pid = self.process.GetProcessID()
+      self.processListener = lldb.SBListener("process_event_listener")
+      self.process.GetBroadcaster().AddListener(self.processListener, lldb.SBProcess.eBroadcastBitStateChanged)
+
+      self.vifx.log("%s" % result, 0)
+    elif args.startswith("i"): # interrupt
+      if not self.process or not self.process.IsValid():
+        self.vifx.log("No valid process to interrupt.")
+        return
+      self.process.SendAsyncInterrupt()
+    elif args.startswith("k"): # kill
+      if not self.process or not self.process.IsValid():
+        self.vifx.log("No valid process to kill.")
+        return
+      if not self.process.Destroy().Success():
+        self.vifx.log("Error during kill: " + str(error))
+      else:
+        self.vifx.log("Killed process (pid=%d)" % self.pid)
     else:
-      self.do_launch('-s' not in args, "")
+      self.do_command("process", args)
+
+    self.processPendingEvents(self.eventDelay)
 
   def do_attach(self, process_name):
     """ Handle process attach.  """
@@ -117,12 +123,12 @@ class LLController(object):
     self.target = self.dbg.CreateTarget('')
     self.process = self.target.AttachToProcessWithName(self.processListener, process_name, False, error)
     if not error.Success():
-      self.ui.log("Error during attach: " + str(error))
+      self.vifx.log("Error during attach: " + str(error))
       return
 
     self.pid = self.process.GetProcessID()
 
-    self.ui.log("Attached to %s (pid=%d)" % (process_name, self.pid), 0)
+    self.vifx.log("Attached to %s (pid=%d)" % (process_name, self.pid), 0)
 
   def do_detach(self):
     if self.process is not None and self.process.IsValid():
@@ -130,72 +136,27 @@ class LLController(object):
       self.process.Detach()
       self.processPendingEvents(self.eventDelay)
 
-  def do_launch(self, stop_at_entry, args):
-    """ Handle process launch.  """
-    error = lldb.SBError()
-
-    fs = self.target.GetExecutable()
-    exe = os.path.join(fs.GetDirectory(), fs.GetFilename())
-    if self.process is not None and self.process.IsValid():
-      pid = self.process.GetProcessID()
-      self.process.Destroy()
-
-    launchInfo = lldb.SBLaunchInfo(args.split(' '))
-    self.process = self.target.Launch(launchInfo, error)
-    if not error.Success():
-      self.ui.log("Error during launch: " + str(error))
-      return
-
-    # launch succeeded, store pid and add some event listeners
-    self.pid = self.process.GetProcessID()
-    self.processListener = lldb.SBListener("process_event_listener")
-    self.process.GetBroadcaster().AddListener(self.processListener, lldb.SBProcess.eBroadcastBitStateChanged)
-
-    self.ui.log("Launched %s %s (pid=%d)" % (exe, args, self.pid), 0)
-
-    if not stop_at_entry:
-      self.do_continue()
-    else:
-      self.processPendingEvents(self.eventDelay)
-
   def do_target(self, args):
-    """ Pass target command to interpreter, except if argument is not one of the valid options, or
-        is create, in which case try to create a target with the argument as the executable. For example:
-          target list        ==> handled by interpreter
-          target create blah ==> custom creation of target 'blah'
-          target blah        ==> also creates target blah
+    """ Pass target command to interpreter
     """
-    target_args = [ "delete", "list", "modules", "select",
-                   "stop-hook", "symbols", "variable" ]
-
-    a = args.split(' ')
-    exe = ''
-    if len(args) == 0 or (len(a) > 0 and a[0] in target_args):
-      self.do_command("target", args)
-      return
-    elif len(a) > 1 and a[0] == "create":
-      exe = a[1]
-    elif len(a) == 1 and a[0] not in target_args:
-      exe = a[0]
-
-    err = lldb.SBError()
-    self.target = self.dbg.CreateTarget(exe, None, None, self.load_dependent_modules, err)
-    if not self.target:
-      self.ui.log("Error creating target %s. %s" % (str(exe), str(err)))
-      return
-
-    self.ui.update(self.target, "created target %s" % str(exe), self.get_command_output)
-    return
+    (success, result) = self.get_command_result("target", args)
+    if not success:
+      self.vifx.log(str(result))
+    elif args.startswith('c'): # create
+      self.target = self.dbg.GetSelectedTarget()
+      self.vifx.log(str(result), 0)
+      self.processPendingEvents(self.eventDelay)
 
   def do_continue(self):
     """ Handle 'contiue' command.
     """
     # FIXME: switch to do_command("continue", ...) to handle -i ignore-count param.
     if not self.process or not self.process.IsValid():
-      self.ui.log("No process to continue")
+      self.vifx.log("No process to continue")
       return
 
-    self.process.Continue()
+    if not self.process.Continue().Success():
+      self.vifx.log("Error during continue: " + str(error))
     self.processPendingEvents(self.eventDelay)
 
   def do_breakswitch(self, filepath, line):
@@ -234,9 +195,9 @@ class LLController(object):
     if success:
       self.ui.update(self.target, "", self.get_command_output, goto_file)
       if len(output) > 0 and print_on_success:
-        self.ui.log(output, 0)
+        self.vifx.log(output, 0)
     else:
-      self.ui.log(output)
+      self.vifx.log(output)
 
   def get_command_output(self, command, command_args=""):
     """ runs cmd in the command interpreter andreturns (status, result) """
@@ -291,5 +252,5 @@ class LLController(object):
     else:
       if old_state == new_state:
         status = ""
-      self.ui.update(self.target, status, self.get_command_output, goto_file)
+    self.ui.update(self.target, status, self.get_command_output, goto_file)
 
