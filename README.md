@@ -1,11 +1,13 @@
-# LLDB Neovim Frontend (under construction)
+# LLDB Neovim Frontend
 
 This plugin provides lldb debbuging integration including
 
-    * breakpoints
-    * watchpoints
-    * threads view
+    * breakpoints displayed as signs
+    * backtrace view
     * locals view
+    * threads view
+    * disassembly and registers view
+    * customizable layout
     * and more ...
 
 Arbitrary valid lldb commands can be invoked as well.
@@ -25,7 +27,7 @@ Installation is easiest using a plugin manager such as [vim-plug](https://github
 ```
     Plug "critiqjo/lldb.nvim"
 ```
-Of course you are free to manually copy the files to your vimrc folder if you prefer
+Of course you are free to manually copy the files to your nvimrc folder if you prefer
 that for whatever weird reason.
 
 Note: After installing (or updating) a plugin that uses Neovim's remote plugin API,
