@@ -56,7 +56,7 @@ at that line. Alternatively, you can execute: >
 
     :LLbreakpoint set --name function_name
 
-Now, execute one of >
+Now, press <S-F5> or call LLUpdateLayout(), and execute one of >
 
     :LLprocess launch
     :LLprocess launch args
@@ -79,6 +79,25 @@ Once it's interrupted, you can select your frame of interest using one of >
 Alternatively, you can kill it using: >
 
     :LLprocess kill
+
+CUSTOMIZING                                     *lldb-customizing*
+
+There are a 2 global options you can edit to change the layout. Default
+values are specified:
+
+*g:lldb_layout_windows* = [ 'backtrace', 'breakpoints', 'disassembly',
+                        \ 'locals', 'registers', 'threads' ]
+                        This is the order in which windows showing the
+                        corresponding buffers will be created.
+
+*g:lldb_layout_cmds* = '.TRBBRkRkR'
+                        This specifies how the windows will be created.
+                        T = tab sp
+                        R = rightbelow vsp
+                        B = belowright sp
+                        A = aboveleft sp
+                        L = leftabove vsp
+                        . = Next command should show the code buffer.
 
 COMMANDS                                        *lldb-commands*
 
