@@ -93,7 +93,9 @@ nnoremap <S-F9> :LLpo <C-R>=expand('<cword>')<CR>
 vnoremap <F9> :<C-U>LLprint <C-R>=LLGetExpression()<CR>
 vnoremap <S-F9> :<C-U>LLpo <C-R>=LLGetExpression()<CR>
 
-hi ll_hi_pc ctermbg=darkblue guibg=darkblue
-sign define ll_sign_bp_res text=B>
-sign define ll_sign_bp_unres text=b>
-sign define ll_sign_pc text=-> linehl=ll_hi_pc texthl=ll_hi_pc
+highlight LLSelectedPCLine ctermbg=darkblue guibg=darkblue
+highlight LLUnselectedPCLine ctermbg=black guibg=black
+sign define llsign_bpres text=B>
+sign define llsign_bpunres text=b>
+sign define llsign_pcsel text=-> linehl=LLSelectedPCLine texthl=LLSelectedPCLine
+sign define llsign_pcunsel text=-> linehl=LLUnselectedPCLine texthl=LLUnselectedPCLine

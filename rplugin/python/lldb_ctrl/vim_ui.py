@@ -37,35 +37,30 @@ class UI:
     self.markedBreakpoints = {}
 
     # Currently shown signs
-    self.breakpointSigns = {}
-    self.pcSigns = []
+    self.bp_signs = {}
+    self.bp_list = {}
+    self.pc_signs = {}
 
   def buf_map_check(self):
     if not self.buf_map:
       self.buf_map = self.vifx.buf_init()
 
-  def get_user_buffers(self, filter_name=None):
-    """ Returns a list of buffers that are not a part of the LLDB UI.
+  def update_pc(self, target, goto_file):
+    """ Place the PC sign on the PC location of each thread's selected frame.
+        If goto_file is True, the cursor should (FIXME) move to the PC location
+        in the selected frame of the selected thread.
     """
-    ret = []
-    self.buf_map_check()
-    for b in self.vifx.get_buffers():
-      if b.number not in self.buf_map.keys(): #and b.options['buflisted']
-        if filter_name is None or filter_name in b.name:
-          ret.append(b)
-    return ret
-
-  def update_pc(self, process, goto_file):
-    """ Place the PC sign on the PC location of each thread's selected frame """
 
     # Clear all existing PC signs
-    del_list = []
-    for sign in self.pcSigns:
+    for sign in self.pc_signs.values():
       sign.hide()
-      del_list.append(sign)
-    for sign in del_list:
-      self.pcSigns.remove(sign)
-      del sign
+    self.pc_signs = {}
+
+    if target is None or not target.IsValid():
+      return
+    process = target.GetProcess()
+    if process is None or not process.IsValid():
+      return
 
     # Show a PC marker for each thread
     for thread in process:
@@ -74,98 +69,82 @@ class UI:
         # no valid source locations for PCs. hide all existing PC markers
         continue
 
-      buf = None
       (tid, fname, line, col) = loc
       is_selected = thread.GetIndexID() == process.GetSelectedThread().GetIndexID()
-      if is_selected and os.path.exists(fname):
+      if os.path.exists(fname):
         bufnr = self.vifx.buffer_add(fname)
       else:
         continue
 
-      self.pcSigns.append(PCSign(self.vifx, bufnr, line, is_selected))
+      self.pc_signs[(bufnr, line)] = PCSign(self.vifx, bufnr, line, is_selected)
 
-      if bufnr and is_selected and goto_file:
-        # if the selected file has a PC marker, move the cursor there too
-        pass # TODO
+      if is_selected and goto_file:
+        # TODO if the selected file has a PC marker, move the cursor there too
+        pass
 
-  def update_breakpoints(self, target, buffers):
+  def update_breakpoints(self, target, hard_update=False):
     """ Decorates buffer with signs corresponding to breakpoints in target. """
 
     if target is None or not target.IsValid():
       return
 
     needed_bps = {}
+    self.bp_list = {}
     for bp_index in range(target.GetNumBreakpoints()):
       bp = target.GetBreakpointAtIndex(bp_index)
       bplocs = get_bploc_tuples(bp, self.vifx.log)
       for (is_resolved, filepath, line) in bplocs:
-        for buf in buffers:
-          if filepath and filepath in buf.name:
-            needed_bps[(buf, line, is_resolved)] = bp
+        if filepath and os.path.exists(filepath):
+          bufnr = self.vifx.buffer_add(filepath)
+          key = (bufnr, line)
+          needed_bps[key] = is_resolved
+          if self.bp_list.has_key(key):
+            self.bp_list[key].append(bp)
+          else:
+            self.bp_list[key] = [ bp ]
 
-    # Hide any signs that correspond with disabled breakpoints
-    del_list = []
-    for (b, l, r) in self.breakpointSigns:
-      if (b, l, r) not in needed_bps:
-        self.breakpointSigns[(b, l, r)].hide()
-        del_list.append((b, l, r))
-    for d in del_list:
-      del self.breakpointSigns[d]
-
-    # Show any signs for new breakpoints
-    for (b, l, r) in needed_bps:
-      bp = needed_bps[(b, l, r)]
-      if self.haveBreakpoint(b.name, l):
-        self.markedBreakpoints[(b.name, l)].append(bp)
+    # Hide all (outdated) breakpoint signs
+    new_bps = needed_bps
+    bp_signs = self.bp_signs.copy()
+    for (key, sign) in bp_signs.items():
+      if hard_update or not new_bps.has_key(key) or sign.resolved != new_bps[key]:
+        sign.hide()
+        del self.bp_signs[key]
       else:
-        self.markedBreakpoints[(b.name, l)] = [bp]
+        del new_bps[key]
 
-      if (b, l, r) not in self.breakpointSigns:
-        s = BreakpointSign(self.vifx, b.number, l, r)
-        self.breakpointSigns[(b, l, r)] = s
+    # Show all (new) breakpoint signs
+    for ((bufnr, line), resolved) in new_bps.items():
+      if not self.pc_signs.has_key((bufnr, line)):
+        self.bp_signs[(bufnr, line)] = BreakpointSign(self.vifx, bufnr, line, resolved)
 
-  def update(self, target, status, commander, goto_file=False):
-    """ Updates breakpoint/pc marks and prints status to the vim status line.
-        If goto_file is True, the user's cursor should be (FIXME) moved to
-        the source PC location in the selected frame.
-    """
-    self.buf_map_check()
-    for (buf, content) in UI._content_map.items():
-      if content[0] == 'command':
-        results = get_command_content(content[1], target, commander)
-      elif content[0] == 'cb_on_target':
-        results = content[1](target)
-      bufnr = self.buf_map[buf]
-      b = self.vifx.get_buffer_from_nr(bufnr)
-      if b is None:
-        self.vifx.log('Invalid buffer map!')
-      else:
-        b.options['ma'] = True
-        b[:] = results
-        b.options['ma'] = False
-
-    self.update_breakpoints(target, self.get_user_buffers())
-
-    if target is not None and target.IsValid():
-      process = target.GetProcess()
-      if process is not None and process.IsValid():
-        self.update_pc(process, goto_file)
-
-    if status is not None and len(status) > 0:
-      self.vifx.log(status, 0)
-
-  def haveBreakpoint(self, file, line):
-    """ Returns True if we have a breakpoint at file:line, False otherwise  """
-    return (file, line) in self.markedBreakpoints
-
-  def getBreakpoints(self, fname, line):
-    """ Returns the LLDB SBBreakpoint object at fname:line """
-    if self.haveBreakpoint(fname, line):
-      return self.markedBreakpoints[(fname, line)]
+  def update_buffer(self, buf, target, commander):
+    content = UI._content_map[buf]
+    if content[0] == 'command':
+      results = get_command_content(content[1], target, commander)
+      if buf == 'breakpoints':
+        self.update_breakpoints(target)
+    elif content[0] == 'cb_on_target':
+      results = content[1](target)
+    bufnr = self.buf_map[buf]
+    b = self.vifx.get_buffer_from_nr(bufnr)
+    if b is None:
+      self.vifx.log('Invalid buffer map!')
     else:
-      return None
+      b.options['ma'] = True
+      b[:] = results
+      b.options['ma'] = False
 
-  def deleteBreakpoints(self, name, line):
-    del self.markedBreakpoints[(name, line)]
+  def update(self, target, commander, status='', goto_file=False, exclude_buf=[]):
+    """ Updates signs, buffers, and prints status to the vim status line. """
+    self.update_pc(target, goto_file)
+
+    self.buf_map_check()
+    for buf in UI._content_map.keys():
+      if buf not in exclude_buf:
+        self.update_buffer(buf, target, commander)
+
+    if len(status) > 0:
+      self.vifx.log(status, 0)
 
 # vim:et:ts=2:sw=2

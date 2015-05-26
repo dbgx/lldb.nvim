@@ -49,37 +49,33 @@ class LLController(object):
     else:
       return []
 
-  def do_step(self, stepType):
-    """ Perform a step command.
-        FIXME: if the step does not complete in eventDelay seconds, we relinquish control to
-               the main thread, after which the user will have to manually request to update UI.
-    """
-    if not self.process:
-      self.vifx.log("No process to step")
-      return
+  def update_ui(self, status="", goto_file=False, buf=None):
+    """ Update buffers """
+    excl = ['breakpoints']
+    commander = self.get_command_output
+    if buf is None:
+      self.ui.update(self.target, commander, status, goto_file, excl)
+    elif buf == '!all':
+      self.ui.update(self.target, commander, status, goto_file)
+    else:
+      self.ui.update_buffer(buf, self.target, commander)
 
-    t = self.process.GetSelectedThread()
-    if stepType == StepType.INSTRUCTION:
-      t.StepInstruction(False)
-    if stepType == StepType.INSTRUCTION_OVER:
-      t.StepInstruction(True)
-    elif stepType == StepType.INTO:
-      t.StepInto()
-    elif stepType == StepType.OVER:
-      t.StepOver()
-    elif stepType == StepType.OUT:
-      t.StepOut()
+  def do_frame(self, args):
+    """ Handle 'frame' command. """
+    self.exec_command("frame", args)
+    if args.startswith('s'): # select
+      self.update_ui(goto_file=True)
 
-    self.processPendingEvents(self.eventDelay, True)
-
-  def do_select(self, command, args):
-    """ Like do_command, but suppress output when "select" is the first argument."""
-    a = args.split(' ')
-    return self.do_command(command, args, "select" != a[0], True)
+  def do_thread(self, args):
+    """ Handle 'thread' command. """
+    self.exec_command("thread", args)
+    if args.startswith('se'): # select
+      self.update_ui(goto_file=True)
+    elif args[0] not in list('bil'): # not in backtrace, info, list
+      self.processPendingEvents(self.eventDelay)
 
   def do_process(self, args):
-    """ Handle 'process' command.
-    """
+    """ Handle 'process' command. """
     if args.startswith("la"): # launch
       if self.process is not None and self.process.IsValid():
         pid = self.process.GetProcessID()
@@ -111,24 +107,24 @@ class LLController(object):
       else:
         self.vifx.log("Killed process (pid=%d)" % self.pid)
     else:
-      self.do_command("process", args)
+      self.exec_command("process", args)
 
     self.processPendingEvents(self.eventDelay)
 
   def do_attach(self, process_name):
     """ Handle process attach.  """
-    error = lldb.SBError()
-
-    self.processListener = lldb.SBListener("process_event_listener")
-    self.target = self.dbg.CreateTarget('')
-    self.process = self.target.AttachToProcessWithName(self.processListener, process_name, False, error)
-    if not error.Success():
-      self.vifx.log("Error during attach: " + str(error))
+    (success, result) = self.get_command_result("attach", args)
+    self.target = self.dbg.GetSelectedTarget()
+    if not success:
+      self.vifx.log("Error during attach: " + str(result))
       return
 
+    # attach succeeded, initialize variables, listeners
+    self.process = self.target.process
     self.pid = self.process.GetProcessID()
-
-    self.vifx.log("Attached to %s (pid=%d)" % (process_name, self.pid), 0)
+    self.processListener = lldb.SBListener("process_event_listener")
+    self.process.GetBroadcaster().AddListener(self.processListener, lldb.SBProcess.eBroadcastBitStateChanged)
+    self.vifx.log(str(result), 0)
 
   def do_detach(self):
     if self.process is not None and self.process.IsValid():
@@ -137,8 +133,7 @@ class LLController(object):
       self.processPendingEvents(self.eventDelay)
 
   def do_target(self, args):
-    """ Pass target command to interpreter
-    """
+    """ Handle 'target' command. """
     (success, result) = self.get_command_result("target", args)
     if not success:
       self.vifx.log(str(result))
@@ -147,31 +142,26 @@ class LLController(object):
       self.vifx.log(str(result), 0)
       self.processPendingEvents(self.eventDelay)
 
-  def do_continue(self):
-    """ Handle 'contiue' command.
-    """
-    # FIXME: switch to do_command("continue", ...) to handle -i ignore-count param.
-    if not self.process or not self.process.IsValid():
-      self.vifx.log("No process to continue")
-      return
-
-    if not self.process.Continue().Success():
-      self.vifx.log("Error during continue: " + str(error))
-    self.processPendingEvents(self.eventDelay)
+  def do_command(self, args):
+    """ Handle 'command' command. """
+    self.ctrl.exec_command("command", args)
+    if args.startswith('so'): # source
+      self.processPendingEvents(self.eventDelay)
+      self.update_ui(buf='breakpoints')
 
   def do_breakswitch(self, filepath, line):
-    if self.ui.haveBreakpoint(filepath, line):
-      bps = self.ui.getBreakpoints(filepath, line)
+    key = (filepath, line)
+    if self.ui.bp_list.has_key(key):
+      bps = self.ui.bp_list[key]
       args = "delete %s" % " ".join([str(b.GetID()) for b in bps])
-      self.ui.deleteBreakpoints(filepath, line)
     else:
       args = "set -f %s -l %d" % (filepath, line)
     self.do_breakpoint(args)
 
   def do_breakpoint(self, args):
-    """ Handle breakpoint command with command interpreter.
-    """
-    self.do_command("breakpoint", args, True)
+    """ Handle breakpoint command with command interpreter. """
+    self.exec_command("breakpoint", args)
+    self.update_ui(buf="breakpoints")
 
   def do_refresh(self):
     """ process pending events and update UI on request """
@@ -189,13 +179,16 @@ class LLController(object):
     self.command_interpreter.HandleCommand(cmd, result)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
-  def do_command(self, command, command_args, print_on_success=True, goto_file=False):
+  def exec_command(self, command, command_args, update_level=0, goto_file=False):
     """ Run cmd in interpreter and print result (success or failure) on the vim status line. """
     (success, output) = self.get_command_result(command, command_args)
     if success:
-      self.ui.update(self.target, "", self.get_command_output, goto_file)
-      if len(output) > 0 and print_on_success:
+      if update_level == 0 and len(output) > 0:
         self.vifx.log(output, 0)
+      if update_level == 1:
+        self.update_ui(output, goto_file)
+      elif update_level > 1:
+        self.processPendingEvents(self.eventDelay, goto_file)
     else:
       self.vifx.log(output)
 
@@ -212,7 +205,6 @@ class LLController(object):
         process only events that are already queued.
     """
 
-    status = None
     num_events_handled = 0
 
     if self.process is not None:
@@ -247,10 +239,5 @@ class LLController(object):
             # If needed, perform any event-specific behaviour here
             num_events_handled += 1
 
-    if num_events_handled == 0:
-      pass
-    else:
-      if old_state == new_state:
-        status = ""
-    self.ui.update(self.target, status, self.get_command_output, goto_file)
+    self.update_ui(goto_file=goto_file, buf='!all')
 
