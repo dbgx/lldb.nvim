@@ -149,13 +149,14 @@ class LLController(object):
       self.processPendingEvents(self.eventDelay)
       self.update_ui(buf='breakpoints')
 
-  def do_breakswitch(self, filepath, line):
-    key = (filepath, line)
+  def do_breakswitch(self, bufnr, line):
+    key = (bufnr, line)
     if self.ui.bp_list.has_key(key):
       bps = self.ui.bp_list[key]
       args = "delete %s" % " ".join([str(b.GetID()) for b in bps])
     else:
-      args = "set -f %s -l %d" % (filepath, line)
+      path = self.vifx.get_buffer_from_nr(bufnr).name
+      args = "set -f %s -l %d" % (path, line)
     self.do_breakpoint(args)
 
   def do_breakpoint(self, args):

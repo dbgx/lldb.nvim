@@ -49,9 +49,7 @@ class LLInterface(object):
     if len(args) != 2:
       self.log('LLBreakswitch takes exactly 2 arguments (%d given)', len(args))
       return
-    path = self.get_buffer_from_nr(args[0]).name
-    assert(path.startswith('/'))
-    self.ctrl.do_breakswitch(path, args[1])
+    self.ctrl.do_breakswitch(args[0], args[1])
 
   @neovim.function('LLComplete', sync=True)
   def _complete(self, args):
