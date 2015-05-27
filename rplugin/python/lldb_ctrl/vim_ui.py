@@ -76,11 +76,11 @@ class UI:
       else:
         continue
 
-      self.pc_signs[(bufnr, line)] = PCSign(self.vifx, bufnr, line, is_selected)
+      sign = PCSign(self.vifx, bufnr, line, is_selected)
+      self.pc_signs[(bufnr, line)] = sign
 
       if is_selected and goto_file:
-        # TODO if the selected file has a PC marker, move the cursor there too
-        pass
+        self.vifx.sign_jump(bufnr, sign.id)
 
   def update_breakpoints(self, target, hard_update=False):
     """ Decorates buffer with signs corresponding to breakpoints in target. """

@@ -24,12 +24,15 @@ class LLInterface(object):
     self.vim.command('call setbufvar(%d, "&bl", 1)' % bufnr)
     return bufnr
 
+  def sign_jump(self, bufnr, sign_id):
+    self.vim.command("call LLTrySignJump(%d, %d)" % (bufnr, sign_id))
+
   def sign_place(self, sign_id, name, bufnr, line):
     cmd = "sign place %d name=%s line=%d buffer=%s" % (sign_id, name, line, bufnr)
     self.vim.command(cmd)
 
-  def sign_unplace(self, id):
-    self.vim.command("sign unplace %d" % id)
+  def sign_unplace(self, sign_id):
+    self.vim.command("sign unplace %d" % sign_id)
 
   def get_buffer_from_nr(self, nr):
     for b in self.vim.buffers:

@@ -74,6 +74,24 @@ function! LLUpdateLayout()
   return tabi
 endfun
 
+function! LLTrySignJump(bufnr, signid)
+  if bufwinnr(a:bufnr) < 0
+    let wnr = -1
+    for i in range(winnr('$'))
+      if index(values(s:buffer_map), winbufnr(i+1)) < 0
+        let wnr = i+1
+        break
+      endif
+    endfor
+    if wnr < 0
+      return
+    endif
+    exe wnr . "wincmd w"
+    exe a:bufnr . 'b'
+  endif
+  exe 'sign jump ' . a:signid . ' buffer=' . a:bufnr
+endfun
+
 " Shamelessly copy/pasted from neovim/contrib/neovim_gdb/neovim_gdb.vim
 function! LLGetExpression()
   let [lnum1, col1] = getpos("'<")[1:2]
