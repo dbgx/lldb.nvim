@@ -1,16 +1,18 @@
 import neovim
 import check_lldb
 
+lldb_success = check_lldb.probe()
+
 from .controller import LLController
 
 @neovim.plugin
 class LLInterface(object):
   def __init__(self, vim):
     self.vim = vim
-    if not check_lldb.probe():
-      import sys
-      vim.command('echom "Unable to load lldb module. Check lldb on the path is available (or LLDB is set)"')
-      sys.exit(0)
+    if not lldb_success:
+      # will not reach here (since plugin manifest won't get generated
+      # due to the ImportError in LLController initialization)
+      pass
     self.ctrl = LLController(self)
     vim.command('au VimLeavePre * call LLExit()')
 
