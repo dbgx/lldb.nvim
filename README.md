@@ -2,15 +2,15 @@
 
 This plugin provides lldb debbuging integration including
 
-    * breakpoints displayed as signs
-    * backtrace view
-    * locals view
-    * threads view
-    * disassembly and registers view
-    * customizable layout
-    * and more ...
+* breakpoints displayed as signs
+* backtrace view
+* locals view
+* threads view
+* disassembly and registers view
+* customizable layout
+* and more ...
 
-Arbitrary valid lldb commands can be invoked as well.
+Arbitrary lldb commands can be invoked as well.
 
 **NOTE** : This is a fork of https://github.com/gilligan/vim-lldb/, which is a fork of
 the plugin that is part of the llvm distribution. The original can be found at
@@ -19,7 +19,7 @@ http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/
 ## Prerequisites
 
 * [Neovim](https://github.com/neovim/neovim) with [python support](https://github.com/neovim/python-client).
-* LLDB executable needs to be in the path
+* [LLDB](http://lldb.llvm.org/)
 
 ## Installation
 
@@ -35,10 +35,10 @@ you may have to execute:
 ```
     :UpdateRemotePlugins
 ```
-which will create a manifest file which containing some mappings.
-This might already be taken care of by the plugin manager, but I'm not sure.
+which will create a manifest file (`~/.nvim/.nvimrc-rplugin~`) containing some mappings;
+then restart Neovim. This might already be taken care of by the plugin manager, but I'm not sure.
 
-## Usage/Getting Help
+## Getting started
 
-Please refer to the vim help for a short 'getting started' section and
-information on the available commands and configuration options. (:he lldb).
+Watch a [demo video](https://youtu.be/aXSNhTH1Co4), or refer to the getting
+started section in the vim-docs (`:h lldb-start`).
