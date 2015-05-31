@@ -119,6 +119,8 @@ class UI:
         self.bp_signs[(bufnr, line)] = BreakpointSign(self.vifx, bufnr, line, resolved)
 
   def update_buffer(self, buf, target, commander):
+    self.buf_map_check()
+
     content = UI._content_map[buf]
     if content[0] == 'command':
       results = get_command_content(content[1], target, commander)
@@ -139,7 +141,6 @@ class UI:
     """ Updates signs, buffers, and prints status to the vim status line. """
     self.update_pc(target, goto_file)
 
-    self.buf_map_check()
     for buf in UI._content_map.keys():
       if buf not in exclude_buf:
         self.update_buffer(buf, target, commander)
