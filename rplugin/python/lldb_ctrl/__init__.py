@@ -10,42 +10,50 @@ class LLInterface(object):
   def __init__(self, vim):
     self.vim = vim
     if not lldb_success:
-      # will not reach here (since plugin manifest won't get generated
-      # due to the ImportError in LLController initialization)
+      # will not reach here from vim ui (since plugin manifest won't get
+      # generated due to the ImportError in LLController initialization)
       pass
     self.ctrl = LLController(self)
     vim.command('au VimLeavePre * call LLExit()')
 
   def log(self, msg, level=1):
+    """ Execute echom in vim using appropriate highlighting. """
     level_map = ['None', 'WarningMsg', 'ErrorMsg']
     msg = msg.replace('"', '\\"').replace('\n', '\\n')
     self.vim.command('echohl %s | echom "%s" | echohl None' % (level_map[level], msg,))
 
   def buffer_add(self, name):
+    """ Create a buffer (if it doesn't exist) and return its number. """
     bufnr = self.vim.eval('bufnr("%s", 1)' % name)
     self.vim.command('call setbufvar(%d, "&bl", 1)' % bufnr)
     return bufnr
 
   def sign_jump(self, bufnr, sign_id):
+    """ Try jumping to the specified sign_id in buffer with number bufnr. """
     self.vim.command("call LLTrySignJump(%d, %d)" % (bufnr, sign_id))
 
   def sign_place(self, sign_id, name, bufnr, line):
+    """ Place a sign at the specified location. """
     cmd = "sign place %d name=%s line=%d buffer=%s" % (sign_id, name, line, bufnr)
     self.vim.command(cmd)
 
   def sign_unplace(self, sign_id):
+    """ Hide a sign with specified id. """
     self.vim.command("sign unplace %d" % sign_id)
 
   def get_buffer_from_nr(self, nr):
+    """ Get the buffer data structure from buffer number. """
     for b in self.vim.buffers:
       if b.number == nr:
         return b
     return None
 
   def get_buffers(self):
+    """ Get the buffer list. """
     return self.vim.buffers
 
   def buf_init(self):
+    """ Create all lldb buffers and initialize the buffer map. """
     buf_map = self.vim.eval('LLBuffersInit()')
     return buf_map
 

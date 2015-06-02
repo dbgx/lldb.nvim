@@ -19,7 +19,9 @@ class LLController(object):
   eventDelay = 2 # FIXME see processPendingEvents()
 
   def __init__(self, vifx):
-    """ Creates the LLDB SBDebugger object and initializes the UI class. """
+    """ Creates the LLDB SBDebugger object and initializes the UI class.
+        vifx represents the parent LLInterface object.
+    """
     self.target = None
     self.process = None
     self.load_dependent_modules = True
@@ -31,7 +33,7 @@ class LLController(object):
     self.ui = UI(vifx)
 
   def complete_command(self, arg, line, pos):
-    """ Returns a list of viable completions for line, and cursor at pos """
+    """ Returns a list of viable completions for line, and cursor at pos. """
 
     result = lldb.SBStringList()
     num = self.command_interpreter.HandleCompletion(line, pos, 1, -1, result)
@@ -49,10 +51,19 @@ class LLController(object):
     else:
       return []
 
-  def update_ui(self, status="", goto_file=False, buf=None):
-    """ Update buffers """
+  def update_ui(self, status='', goto_file=False, buf=None):
+    """ Update lldb buffers and signs placed in source files.
+        @param status
+            The message to be printed on success on the vim status line.
+        @param goto_file
+            Whether or not to move the cursor to the program counter (PC).
+        @param buf
+            If None, all buffers and signs excepts breakpoints would be updated.
+            If '!all', all buffers incl. breakpoints would be updated.
+            Otherwise, update only the specified buffer.
+    """
     excl = ['breakpoints']
-    commander = self.get_command_output
+    commander = self.get_command_result
     if buf is None:
       self.ui.update(self.target, commander, status, goto_file, excl)
     elif buf == '!all':
@@ -76,6 +87,7 @@ class LLController(object):
 
   def do_process(self, args):
     """ Handle 'process' command. """
+    # FIXME use do_attach/do_detach to handle attach/detach subcommands.
     if args.startswith("la"): # launch
       if self.process is not None and self.process.IsValid():
         pid = self.process.GetProcessID()
@@ -112,7 +124,7 @@ class LLController(object):
     self.processPendingEvents(self.eventDelay)
 
   def do_attach(self, process_name):
-    """ Handle process attach.  """
+    """ Handle process attach. """
     (success, result) = self.get_command_result("attach", args)
     self.target = self.dbg.GetSelectedTarget()
     if not success:
@@ -127,6 +139,7 @@ class LLController(object):
     self.vifx.log(str(result), 0)
 
   def do_detach(self):
+    """ Handle process detach. """
     if self.process is not None and self.process.IsValid():
       pid = self.process.GetProcessID()
       self.process.Detach()
@@ -150,6 +163,7 @@ class LLController(object):
       self.update_ui(buf='breakpoints')
 
   def do_breakswitch(self, bufnr, line):
+    """ Switch breakpoint at the specified line in the buffer. """
     key = (bufnr, line)
     if self.ui.bp_list.has_key(key):
       bps = self.ui.bp_list[key]
@@ -165,24 +179,29 @@ class LLController(object):
     self.update_ui(buf="breakpoints")
 
   def do_refresh(self):
-    """ process pending events and update UI on request """
+    """ Process pending events and update UI on request. """
     status = self.processPendingEvents()
 
   def do_exit(self):
+    """ Destroy the debugger instance. """
     self.dbg.Terminate()
     self.dbg = None
 
-  def get_command_result(self, command, command_args):
-    """ Run cmd in the command interpreter and returns (success, output) """
+  def get_command_result(self, command, args=""):
+    """ Run command in the command interpreter and returns (success, output) """
     result = lldb.SBCommandReturnObject()
-    cmd = "%s %s" % (command, command_args)
+    cmd = "%s %s" % (command, args)
 
     self.command_interpreter.HandleCommand(cmd, result)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
-  def exec_command(self, command, command_args, update_level=0, goto_file=False):
-    """ Run cmd in interpreter and print result (success or failure) on the vim status line. """
-    (success, output) = self.get_command_result(command, command_args)
+  def exec_command(self, command, args, update_level=0, goto_file=False):
+    """ Run command in the interpreter and:
+        + Print result on the vim status line (update_level >= 0)
+        + Update UI (update_level >= 1)
+        + Check for and process any lldb events in queue (update_level >= 2)
+    """
+    (success, output) = self.get_command_result(command, args)
     if success:
       if update_level == 0 and len(output) > 0:
         self.vifx.log(output, 0)
@@ -192,13 +211,6 @@ class LLController(object):
         self.processPendingEvents(self.eventDelay, goto_file)
     else:
       self.vifx.log(output)
-
-  def get_command_output(self, command, command_args=""):
-    """ runs cmd in the command interpreter andreturns (status, result) """
-    result = lldb.SBCommandReturnObject()
-    cmd = "%s %s" % (command, command_args)
-    self.command_interpreter.HandleCommand(cmd, result)
-    return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
   def processPendingEvents(self, wait_seconds=0, goto_file=True): # FIXME replace this with a separate thread
     """ Handle any events that are queued from the inferior.

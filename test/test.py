@@ -16,8 +16,8 @@ iface = LLInterface(vim)
 
 from time import sleep
 delay = 1
-vim.command('sp ab.c')
-bufnr = vim.eval('bufnr("ab.c")')
+bufnr = iface.buffer_add('ab.c')
+vim.command('sb %s' % bufnr)
 iface._target(['create ab'])
 sleep(delay)
 vim.command('call LLUpdateLayout()')
@@ -56,6 +56,7 @@ sleep(delay)
 iface._continue([])
 
 finalmsg = ('-- End of test --\\n'
-            'Make sure there were no errors in python console.\\n'
-            'You can use the variable `iface` from the console for further testing.')
+            'Make sure there were no errors in python console.')
 vim.command('echo "%s"' % finalmsg)
+print ('You can use the variable `iface` for further testing.\n'
+       'See `dir(iface)`, `help(iface)` and `help(iface.ctrl)`')
