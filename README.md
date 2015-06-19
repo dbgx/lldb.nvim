@@ -1,5 +1,7 @@
 # LLDB Neovim Frontend
 
+[![Join the chat at https://gitter.im/critiqjo/lldb.nvim](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/critiqjo/lldb.nvim?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 This plugin provides lldb debbuging integration including
 
 * breakpoints displayed as signs
