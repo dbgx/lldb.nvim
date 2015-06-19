@@ -27,8 +27,7 @@ Installation is easiest using a plugin manager such as [vim-plug](https://github
 ```
     Plug "critiqjo/lldb.nvim"
 ```
-Of course you are free to manually copy the files to your nvimrc folder if you prefer
-that for whatever weird reason.
+Or you can manually copy the files to your `~/.nvimrc` folder if you prefer that for some reason.
 
 Note: After installing (or updating) a plugin that uses Neovim's remote plugin API,
 you may have to execute:
@@ -42,3 +41,7 @@ then restart Neovim. This might already be taken care of by the plugin manager, 
 
 Watch a [demo video](https://youtu.be/aXSNhTH1Co4), or refer to the getting
 started section in the vim-docs (`:h lldb-start`).
+
+## General Discussion
+
+Comment on the [project web page](http://critiqjo.github.io/lldb.nvim/).
