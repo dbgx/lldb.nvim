@@ -45,18 +45,19 @@ sleep(delay)
 iface._print(['cc'])
 sleep(delay)
 iface._continue([])
-left = 4
-while left > 0:
-  vim.command('echo "%s second(s) left..."' % left)
-  sleep(1)
-  left -= 1
-vim.command('echo ""')
-iface._refresh()
-sleep(delay)
+#left = 4
+#while left > 0:
+#  # XXX: vim object is not threadsafe
+#  vim.command('echo "%s second(s) left..."' % left)
+#  sleep(1)
+#  left -= 1
+#vim.command('echo ""')
+#iface._refresh()
+sleep(10)
 iface._continue([])
 
 finalmsg = ('-- End of test --\\n'
             'Make sure there were no errors in python console.')
-vim.command('echo "%s"' % finalmsg)
+#vim.command('echo "%s"' % finalmsg)
 print ('You can use the variable `iface` for further testing.\n'
        'See `dir(iface)`, `help(iface)` and `help(iface.ctrl)`')

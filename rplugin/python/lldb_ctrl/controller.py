@@ -1,42 +1,51 @@
 import os, re, sys
 import lldb
+from threading import Thread
 
 from vim_ui import UI
 
-class StepType:
-  INSTRUCTION = 1
-  INSTRUCTION_OVER = 2
-  INTO = 3
-  OVER = 4
-  OUT = 5
-
-class LLController(object):
+class LLController(Thread):
   """ Handles LLDB events and commands. """
 
-  # Timeout (sec) for waiting on new events. Due to the current single threaded design,
-  # we should wait a few seconds for any new event, and update vim buffers. After which,
-  # the user will have to manually request an update (using :LLrefresh).
-  eventDelay = 2 # FIXME see processPendingEvents()
-
+  CTRL_VOICE = 238 # just a number of my choice
   def __init__(self, vifx):
     """ Creates the LLDB SBDebugger object and initializes the UI class.
         vifx represents the parent LLInterface object.
     """
+    from Queue import Queue
     self.target = None
     self.process = None
-    self.load_dependent_modules = True
+    self.in_queue = Queue()
+    self.out_queue = Queue()
 
     self.dbg = lldb.SBDebugger.Create()
-    self.command_interpreter = self.dbg.GetCommandInterpreter()
+    self.interpreter = self.dbg.GetCommandInterpreter()
+    self.listener = lldb.SBListener("the_ear")
+    self.interrupter = lldb.SBBroadcaster("the_mouth")
+    self.interrupter.AddListener(self.listener, self.CTRL_VOICE)
 
     self.vifx = vifx
     self.ui = UI(vifx)
+    super(LLController, self).__init__()
+
+  def safe_call(self, method, args, sync=False): # safe_ marks thread safety
+    self.in_queue.put((method, args, sync))
+    interrupt = lldb.SBEvent(self.CTRL_VOICE, "the_sound")
+    self.interrupter.BroadcastEvent(interrupt)
+    if sync:
+      return self.out_queue.get(True)
+
+  def safe_execute(self, cmd, args):
+    self.safe_call(self.exec_command, [cmd, ' '.join(args)])
+
+  def safe_exit(self):
+    self.safe_call(None, None)
+    self.join()
 
   def complete_command(self, arg, line, pos):
     """ Returns a list of viable completions for line, and cursor at pos. """
-
     result = lldb.SBStringList()
-    num = self.command_interpreter.HandleCompletion(line, pos, 1, -1, result)
+    num = self.interpreter.HandleCompletion(line, pos, 1, -1, result)
 
     if num == -1:
       # FIXME: insert completion character... what's a completion character?
@@ -82,8 +91,6 @@ class LLController(object):
     self.exec_command("thread", args)
     if args.startswith('se'): # select
       self.update_ui(goto_file=True)
-    elif args[0] not in list('bil'): # not in backtrace, info, list
-      self.processPendingEvents(self.eventDelay)
 
   def do_process(self, args):
     """ Handle 'process' command. """
@@ -101,8 +108,7 @@ class LLController(object):
 
       # launch succeeded, store pid and add some event listeners
       self.pid = self.process.GetProcessID()
-      self.processListener = lldb.SBListener("process_event_listener")
-      self.process.GetBroadcaster().AddListener(self.processListener, lldb.SBProcess.eBroadcastBitStateChanged)
+      self.process.GetBroadcaster().AddListener(self.listener, lldb.SBProcess.eBroadcastBitStateChanged)
 
       self.vifx.log("%s" % result, 0)
     elif args.startswith("i"): # interrupt
@@ -121,8 +127,6 @@ class LLController(object):
     else:
       self.exec_command("process", args)
 
-    self.processPendingEvents(self.eventDelay)
-
   def do_attach(self, process_name):
     """ Handle process attach. """
     (success, result) = self.get_command_result("attach", args)
@@ -134,8 +138,7 @@ class LLController(object):
     # attach succeeded, initialize variables, listeners
     self.process = self.target.process
     self.pid = self.process.GetProcessID()
-    self.processListener = lldb.SBListener("process_event_listener")
-    self.process.GetBroadcaster().AddListener(self.processListener, lldb.SBProcess.eBroadcastBitStateChanged)
+    self.process.GetBroadcaster().AddListener(self.listener, lldb.SBProcess.eBroadcastBitStateChanged)
     self.vifx.log(str(result), 0)
 
   def do_detach(self):
@@ -143,7 +146,6 @@ class LLController(object):
     if self.process is not None and self.process.IsValid():
       pid = self.process.GetProcessID()
       self.process.Detach()
-      self.processPendingEvents(self.eventDelay)
 
   def do_target(self, args):
     """ Handle 'target' command. """
@@ -153,13 +155,11 @@ class LLController(object):
     elif args.startswith('c'): # create
       self.target = self.dbg.GetSelectedTarget()
       self.vifx.log(str(result), 0)
-      self.processPendingEvents(self.eventDelay)
 
   def do_command(self, args):
     """ Handle 'command' command. """
     self.ctrl.exec_command("command", args)
     if args.startswith('so'): # source
-      self.processPendingEvents(self.eventDelay)
       self.update_ui(buf='breakpoints')
 
   def do_breakswitch(self, bufnr, line):
@@ -178,28 +178,18 @@ class LLController(object):
     self.exec_command("breakpoint", args)
     self.update_ui(buf="breakpoints")
 
-  def do_refresh(self):
-    """ Process pending events and update UI on request. """
-    status = self.processPendingEvents()
-
-  def do_exit(self):
-    """ Destroy the debugger instance. """
-    self.dbg.Terminate()
-    self.dbg = None
-
   def get_command_result(self, command, args=""):
     """ Run command in the command interpreter and returns (success, output) """
     result = lldb.SBCommandReturnObject()
     cmd = "%s %s" % (command, args)
 
-    self.command_interpreter.HandleCommand(cmd, result)
+    self.interpreter.HandleCommand(cmd, result)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
   def exec_command(self, command, args, update_level=0, goto_file=False):
     """ Run command in the interpreter and:
         + Print result on the vim status line (update_level >= 0)
         + Update UI (update_level >= 1)
-        + Check for and process any lldb events in queue (update_level >= 2)
     """
     (success, output) = self.get_command_result(command, args)
     if success:
@@ -207,50 +197,30 @@ class LLController(object):
         self.vifx.log(output, 0)
       if update_level == 1:
         self.update_ui(output, goto_file)
-      elif update_level > 1:
-        self.processPendingEvents(self.eventDelay, goto_file)
     else:
       self.vifx.log(output)
 
-  def processPendingEvents(self, wait_seconds=0, goto_file=True): # FIXME replace this with a separate thread
-    """ Handle any events that are queued from the inferior.
-        Blocks for at most wait_seconds, or if wait_seconds == 0,
-        process only events that are already queued.
-    """
-
-    num_events_handled = 0
-
-    if self.process is not None:
+  def run(self):
+    from Queue import Empty
+    while True:
       event = lldb.SBEvent()
-      old_state = self.process.GetState()
-      new_state = None
-      done = False
-      if old_state == lldb.eStateInvalid or old_state == lldb.eStateExited:
-        # Early-exit if we are in 'boring' states
+      if self.listener.WaitForEvent(8, event):
+        if event.GetType() == self.CTRL_VOICE:
+          try:
+            method, args, sync = self.in_queue.get(False)
+            print 'method: %s' % method.func_name
+            if method is None:
+              break
+            ret = method(*args)
+            if sync:
+              self.out_queue.put(ret)
+          except Empty:
+            print 'Empty interrupt!'
+            pass
+        else:
+          self.update_ui(goto_file=True, buf='!all')
+      else: # Timed out
         pass
-      else:
-        while not done and self.processListener is not None:
-          if not self.processListener.PeekAtNextEvent(event):
-            if wait_seconds > 0:
-              # No events on the queue, but we are allowed to wait for wait_seconds
-              # for any events to show up.
-              self.processListener.WaitForEvent(wait_seconds, event)
-              new_state = lldb.SBProcess.GetStateFromEvent(event)
-
-              num_events_handled += 1
-
-            done = not self.processListener.PeekAtNextEvent(event)
-          else:
-            # An event is on the queue, process it here.
-            self.processListener.GetNextEvent(event)
-            new_state = lldb.SBProcess.GetStateFromEvent(event)
-
-            # continue if stopped after attaching
-            if old_state == lldb.eStateAttaching and new_state == lldb.eStateStopped:
-              self.process.Continue()
-
-            # If needed, perform any event-specific behaviour here
-            num_events_handled += 1
-
-    self.update_ui(goto_file=goto_file, buf='!all')
+    self.dbg.Terminate()
+    self.dbg = None
 

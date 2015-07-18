@@ -14,6 +14,7 @@ class LLInterface(object):
       # generated due to the ImportError in LLController initialization)
       pass
     self.ctrl = LLController(self)
+    self.ctrl.start()
     vim.command('au VimLeavePre * call LLExit()')
 
   def log(self, msg, level=1):
@@ -59,10 +60,10 @@ class LLInterface(object):
 
   @neovim.function('LLBreakswitch')
   def _breakswitch(self, args):
-    if len(args) != 2:
-      self.log('LLBreakswitch takes exactly 2 arguments (%d given)', len(args))
-      return
-    self.ctrl.do_breakswitch(args[0], args[1])
+    if len(args) != 2: # XXX: self.log is not threadsafe
+      self.log('LLBreakswitch takes exactly 2 arguments (%d given)' % len(args))
+    else:
+      self.ctrl.safe_call(self.ctrl.do_breakswitch, [args[0], args[1]])
 
   @neovim.function('LLComplete', sync=True)
   def _complete(self, args):
@@ -79,169 +80,168 @@ class LLInterface(object):
       line = '_regexp-' + line.lstrip('regexp')
       pos += 2
 
-    results = self.ctrl.complete_command(arg, line, pos)
+    results = self.ctrl.safe_call(self.ctrl.complete_command, [arg, line, pos], True)
     return '%s\n' % '\n'.join(results)
 
   @neovim.function('LLExit', sync=True)
   def _exit(self, args):
-    self.ctrl.do_exit()
+    self.ctrl.safe_exit()
 
   @neovim.command('LLrun', nargs='*')
   def _run(self, args):
-    self.ctrl.do_process('launch ' + ' '.join(args))
+    # FIXME: Remove in favor of `LLprocess launch` and `LLstart`?
+    self.ctrl.safe_call(self.ctrl.do_process, ['launch ' + ' '.join(args)])
 
   @neovim.command('LLstart', nargs='*')
   def _start(self, args):
-    self.ctrl.do_process('launch -s ' + ' '.join(args))
+    # TODO: Take no arguments; launch as specified in the configuration file
+    self.ctrl.safe_call(self.ctrl.do_process, ['launch -s ' + ' '.join(args)])
 
   @neovim.command('LLattach', nargs='1')
   def _attach(self, args):
-    self.ctrl.do_attach(' '.join(args))
+    self.ctrl.safe_call(self.ctrl.do_attach, [' '.join(args)])
 
   @neovim.command('LLdetach')
   def _detach(self):
-    self.ctrl.do_detach()
+    self.ctrl.safe_call(self.ctrl.do_detach, [])
 
   @neovim.command('LLapropos', nargs='*', complete='custom,LLComplete')
   def _apropos(self, args):
-    self.ctrl.exec_command("apropos", ' '.join(args))
+    self.ctrl.safe_execute("apropos", args)
 
   @neovim.command('LLbreakpoint', nargs='*', complete='custom,LLComplete')
   def _breakpoint(self, args):
-    self.ctrl.do_breakpoint(' '.join(args))
+    self.ctrl.safe_call(self.ctrl.do_breakpoint, [' '.join(args)])
 
   @neovim.command('LLbt', nargs='*', complete='custom,LLComplete')
   def _bt(self, args):
-    self.ctrl.exec_command("bt", ' '.join(args))
+    self.ctrl.safe_execute("bt", args)
 
   @neovim.command('LLcommand', nargs='*', complete='custom,LLComplete')
   def _command(self, args):
-    self.ctrl.do_command(' '.join(args))
+    self.ctrl.safe_call(self.ctrl.do_command, [' '.join(args)])
 
   @neovim.command('LLcontinue', nargs='*', complete='custom,LLComplete')
   def _continue(self, args):
-    self.ctrl.exec_command("continue", ' '.join(args), update_level=2, goto_file=True)
+    self.ctrl.safe_execute("continue", args)
 
   @neovim.command('LLdisassemble', nargs='*', complete='custom,LLComplete')
   def _disassemble(self, args):
-    self.ctrl.exec_command("disassemble", ' '.join(args))
+    self.ctrl.safe_execute("disassemble", args)
 
   @neovim.command('LLexpression', nargs='*', complete='custom,LLComplete')
   def _expression(self, args):
-    self.ctrl.exec_command("expression", ' '.join(args))
+    self.ctrl.safe_execute("expression", args)
 
   @neovim.command('LLframe', nargs='*', complete='custom,LLComplete')
   def _frame(self, args):
-    self.ctrl.do_frame(' '.join(args))
+    self.ctrl.safe_call(self.ctrl.do_frame, [' '.join(args)])
 
   @neovim.command('LLhelp', nargs='*', complete='custom,LLComplete')
   def _help(self, args):
-    self.ctrl.exec_command("help", ' '.join(args))
+    self.ctrl.safe_execute("help", args)
 
   @neovim.command('LLlog', nargs='*', complete='custom,LLComplete')
   def _log(self, args):
-    self.ctrl.exec_command("log", ' '.join(args))
+    self.ctrl.safe_execute("log", args)
 
   @neovim.command('LLplatform', nargs='*', complete='custom,LLComplete')
   def _platform(self, args):
-    self.ctrl.exec_command("platform",' '.join(args)) # update_level?
+    self.ctrl.safe_execute("platform", args)
 
   @neovim.command('LLplugin', nargs='*', complete='custom,LLComplete')
   def _plugin(self, args):
-    self.ctrl.exec_command("plugin", ' '.join(args)) # update_level?
+    self.ctrl.safe_execute("plugin", args)
 
   @neovim.command('LLpo', nargs='*', complete='custom,LLComplete')
   def _po(self, args):
-    self.ctrl.exec_command("po", ' '.join(args))
+    self.ctrl.safe_execute("po", args)
 
   @neovim.command('LLprint', nargs='*', complete='custom,LLComplete')
   def _print(self, args):
-    self.ctrl.exec_command("print", ' '.join(args))
+    self.ctrl.safe_execute("print", args)
 
   @neovim.command('LLprocess', nargs='*', complete='custom,LLComplete')
   def _process(self, args):
-    self.ctrl.do_process(' '.join(args))
-
-  @neovim.command('LLrefresh')
-  def _refresh(self): # FIXME see processPendingEvents()
-    self.ctrl.processPendingEvents()
+    self.ctrl.safe_call(self.ctrl.do_process, [' '.join(args)])
 
   @neovim.command('LLregexpattach', nargs='*', complete='custom,LLComplete')
   def _regexpattach(self, args):
-    self.ctrl.exec_command("_regexp-attach", ' '.join(args))
+    self.ctrl.safe_execute("_regexp-attach", args)
 
   @neovim.command('LLregexpbreak', nargs='*', complete='custom,LLComplete')
   def _regexpbreak(self, args):
-    self.ctrl.exec_command("_regexp-break", ' '.join(args))
+    self.ctrl.safe_execute("_regexp-break", args)
 
   @neovim.command('LLregexpbt', nargs='*', complete='custom,LLComplete')
   def _regexpbt(self, args):
-    self.ctrl.exec_command("_regexp-bt", ' '.join(args))
+    self.ctrl.safe_execute("_regexp-bt", args)
 
   @neovim.command('LLregexptbreak', nargs='*', complete='custom,LLComplete')
   def _regexptbreak(self, args):
-    self.ctrl.exec_command("_regexp-tbreak", ' '.join(args))
+    self.ctrl.safe_execute("_regexp-tbreak", args)
 
   @neovim.command('LLregexpdisplay', nargs='*', complete='custom,LLComplete')
   def _regexpdisplay(self, args):
-    self.ctrl.exec_command("_regexp-display", ' '.join(args))
+    self.ctrl.safe_execute("_regexp-display", args)
 
   @neovim.command('LLregexpundisplay', nargs='*', complete='custom,LLComplete')
   def _regexpundisplay(self, args):
-    self.ctrl.exec_command("_regexp-undisplay", ' '.join(args))
+    self.ctrl.safe_execute("_regexp-undisplay", args)
 
   @neovim.command('LLregister', nargs='*', complete='custom,LLComplete')
   def _register(self, args):
-    self.ctrl.exec_command("register", ' '.join(args))
+    self.ctrl.safe_execute("register", args)
 
   @neovim.command('LLscript', nargs='*', complete='custom,LLComplete')
   def _script(self, args):
-    self.ctrl.exec_command("script", ' '.join(args))
+    self.ctrl.safe_execute("script", args)
 
   @neovim.command('LLsettings', nargs='*', complete='custom,LLComplete')
   def _settings(self, args):
-    self.ctrl.exec_command("settings",' '.join(args))
+    self.ctrl.safe_execute("settings",args)
 
   @neovim.command('LLsource', nargs='*', complete='custom,LLComplete')
   def _source(self, args):
-    self.ctrl.exec_command("source", ' '.join(args))
+    self.ctrl.safe_execute("source", args)
 
   @neovim.command('LLtarget', nargs='*', complete='custom,LLComplete')
   def _target(self, args):
-    self.ctrl.do_target(' '.join(args))
+    self.ctrl.safe_call(self.ctrl.do_target, [' '.join(args)])
 
   @neovim.command('LLthread', nargs='*', complete='custom,LLComplete')
   def _thread(self, args):
-    self.ctrl.do_thread(' '.join(args))
+    self.ctrl.safe_call(self.ctrl.do_thread, [' '.join(args)])
 
   @neovim.command('LLtype', nargs='*', complete='custom,LLComplete')
   def _type(self, args):
-    self.ctrl.exec_command("type", ' '.join(args))
+    self.ctrl.safe_execute("type", args)
 
   @neovim.command('LLversion', nargs='*', complete='custom,LLComplete')
   def _version(self, args):
-    self.ctrl.exec_command("version", ' '.join(args))
+    self.ctrl.safe_execute("version", args)
 
   @neovim.command('LLwatchpoint', nargs='*', complete='custom,LLComplete')
   def _watchpoint(self, args):
-    self.ctrl.exec_command("watchpoint", ' '.join(args))
+    self.ctrl.safe_execute("watchpoint", args)
 
   @neovim.command('LLup', nargs='?', complete='custom,LLComplete')
   def _up(self, args):
-    self.ctrl.exec_command("up", ' '.join(args), update_level=1, goto_file=True)
+    n = "1" if len(args) == 0 else args[0]
+    self.ctrl.safe_call(self.ctrl.do_frame, ['select -r +' + n])
 
   @neovim.command('LLdown', nargs='?', complete='custom,LLComplete')
   def _down(self, args):
-    self.ctrl.exec_command("down", ' '.join(args), update_level=1, goto_file=True)
+    self.ctrl.safe_call(self.ctrl.do_frame, ['select -r -' + n])
 
   @neovim.command('LLstep', nargs='*', complete='custom,LLComplete')
   def _step(self, args):
-    self.ctrl.exec_command("step", ' '.join(args), update_level=2, goto_file=True)
+    self.ctrl.safe_execute("step", args)
 
   @neovim.command('LLnext', nargs='*', complete='custom,LLComplete')
   def _next(self, args):
-    self.ctrl.exec_command("next", ' '.join(args), update_level=2, goto_file=True)
+    self.ctrl.safe_execute("next", args)
 
   @neovim.command('LLfinish', nargs='*', complete='custom,LLComplete')
   def _finish(self, args):
-    self.ctrl.exec_command("finish", ' '.join(args), update_level=2, goto_file=True)
+    self.ctrl.safe_execute("finish", args)
