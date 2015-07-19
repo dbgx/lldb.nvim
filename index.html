@@ -20,8 +20,7 @@
     <header>
       <div class="inner">
         <h1>lldb.nvim</h1>
-        <h2>A major refactor of <a href="https://github.com/gilligan/vim-lldb" style="color: white;">vim-lldb</a> plugin using Neovim&#39;s
-        advanced features to provide a smoother, cleaner interface.</h2>
+        <h2>Debugger integration tailor made for Neovim.</h2>
         <a href="https://github.com/critiqjo/lldb.nvim" class="button"><small>View project on</small> GitHub</a>
       </div>
     </header>
@@ -36,55 +35,69 @@
 <p>This plugin provides lldb debbuging integration including</p>
 
 <ul>
-<li>breakpoints displayed as signs</li>
-<li>backtrace view</li>
-<li>locals view</li>
-<li>threads view</li>
-<li>disassembly and registers view</li>
-<li>customizable layout</li>
-<li>and more ...</li>
+<li>Breakpoints and program counter displayed as signs</li>
+<li>Buffers showing backtrace, breakpoints, threads, local variables, registers and disassembly</li>
+<li>Supports almost all LLDB commands from vim-command line (with tab-completion)</li>
+<li>Event-based UI updates</li>
+<li>Non-blocking UI</li>
+<li>Customizable Layout</li>
 </ul>
 
-<p>Arbitrary lldb commands can be invoked as well.</p>
-
-<p><strong>NOTE</strong> : This is a fork of <a href="https://github.com/gilligan/vim-lldb/">https://github.com/gilligan/vim-lldb/</a>, which is a fork of
-the plugin that is part of the llvm distribution. The original can be found at
-<a href="http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/">http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/</a></p>
+<p><strong>Note</strong>: This is a fork of <a href="https://github.com/gilligan/vim-lldb/">gilligan/vim-lldb</a>, which is a fork of
+the plugin that is <a href="https://github.com/llvm-mirror/lldb/tree/master/utils/vim-lldb">part of LLDB project itself</a>.</p>
 
 <h2>
 <a id="prerequisites" class="anchor" href="#prerequisites" aria-hidden="true"><span class="octicon octicon-link"></span></a>Prerequisites</h2>
 
 <ul>
-<li>
-<a href="https://github.com/neovim/neovim">Neovim</a> with <a href="https://github.com/neovim/python-client">python support</a>.</li>
-<li><a href="http://lldb.llvm.org/">LLDB</a></li>
+  <li><a href="https://github.com/neovim/neovim">Neovim</a> with <a href="https://github.com/neovim/python-client">python support</a>.</li>
+  <li><a href="http://lldb.llvm.org/">LLDB</a></li>
 </ul>
 
 <h2>
 <a id="installation" class="anchor" href="#installation" aria-hidden="true"><span class="octicon octicon-link"></span></a>Installation</h2>
+<ol>
+  <li>
+    <p>Installation is easiest using a plugin manager such as <a href="https://github.com/junegunn/vim-plug">vim-plug</a>:</p>
+    <pre><code>Plug "critiqjo/lldb.nvim"</code></pre>
+    <p>Or you can manually copy the files to your <code>~/.nvimrc</code> directory.</p>
+  </li>
 
-<p>Installation is easiest using a plugin manager such as <a href="https://github.com/junegunn/vim-plug">vim-plug</a>:</p>
+  <li>
+    <p>After installing (or updating) a plugin that uses Neovim's remote plugin API, you have to execute:</p>
+    <pre><code>:UpdateRemotePlugins</code></pre>
 
-<pre><code>    Plug "critiqjo/lldb.nvim"
-</code></pre>
-
-<p>Or you can manually copy the files to your .nvimrc folder if you prefer that for some reason.</p>
-
-<p>Note: After installing (or updating) a plugin that uses Neovim's remote plugin API, you will have to execute:</p>
-
-<pre><code>    :UpdateRemotePlugins
-</code></pre>
-
-<p>which will create a manifest file (<code>~/.nvim/.nvimrc-rplugin~</code>) containing some mappings;
-then restart Neovim. This might already be taken care of by the plugin manager, but I'm not sure.</p>
+    <p>which will create a manifest file (<code>~/.nvim/.nvimrc-rplugin~</code>) containing some mappings;
+    then restart Neovim. This might already be taken care of by the plugin manager, but I'm not sure.</p>
+  </li>
+</ol>
 
 <h2>
 <a id="getting-started" class="anchor" href="#getting-started" aria-hidden="true"><span class="octicon octicon-link"></span></a>Getting started</h2>
 
-<p>Watch a <a href="https://youtu.be/aXSNhTH1Co4">demo video</a>, or refer to the getting
-started section in the vim-docs (<code>:h lldb-start</code>).</p>
+<p>Watch the demo video below, or refer to the getting started section in the vim-docs (<code>:h lldb-start</code>).</p>
+<p><iframe width="560" height="315" src="https://www.youtube.com/embed/aXSNhTH1Co4" frameborder="0" allowfullscreen></iframe></p>
 
-<p></p>
+<h2>
+<a id="license" class="anchor" href="#license" aria-hidden="true"><span class="octicon octicon-link"></span></a>License</h2>
+<p>
+Same as Vim itself. See <code>:help license</code>.
+</p>
+
+<h2>
+<a id="bugs" class="anchor" href="#bugs" aria-hidden="true"><span class="octicon octicon-link"></span></a>Issues and Bugs</h2>
+<p>
+Please make sure that the test script lldb.nvim/test/run.sh executes without problems. If not, please discuss it at
+<a href="https://gitter.im/critiqjo/lldb.nvim">Gitter</a>.
+</p>
+
+<p>If you run into a bug, use the <a href="https://github.com/critiqjo/lldb.nvim/issues">Github issue tracker</a> to report it.</p>
+
+<h2>
+<a id="contributing" class="anchor" href="#contributing" aria-hidden="true"><span class="octicon octicon-link"></span></a>Contributing</h2>
+<p>
+Fork me on Github and issue a pull request. :)
+</p>
         </section>
 
         <aside id="sidebar">
@@ -97,13 +110,13 @@ started section in the vim-docs (<code>:h lldb-start</code>).</p>
             .tar.gz file
           </a>
 
-          <p class="repo-owner"><a href="https://github.com/critiqjo/lldb.nvim"></a> is maintained by <a href="https://github.com/critiqjo">critiqjo</a>.</p>
+          <p class="repo-owner"><a href="https://github.com/critiqjo/lldb.nvim">lldb.nvim</a> is maintained by <a href="https://github.com/critiqjo">critiqjo</a>.</p>
           <p>
             <a href="https://gitter.im/critiqjo/lldb.nvim?utm_source=share-link&amp;utm_medium=link&amp;utm_campaign=share-link">
             <img src="https://camo.githubusercontent.com/da2edb525cde1455a622c58c0effc3a90b9a181c/68747470733a2f2f6261646765732e6769747465722e696d2f4a6f696e253230436861742e737667" alt="Join the chat at https://gitter.im/critiqjo/lldb.nvim"></a>
           </p>
 
-          <p>This page was generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
+          <p>This page was originally generated by <a href="https://pages.github.com">GitHub Pages</a> using the Architect theme by <a href="https://twitter.com/jasonlong">Jason Long</a>.</p>
         </aside>
       </div>
     </div>
