@@ -28,7 +28,7 @@ class LLController(Thread):
     self.ui = UI(vifx)
     super(LLController, self).__init__()
 
-  def safe_call(self, method, args, sync=False): # safe_ marks thread safety
+  def safe_call(self, method, args=[], sync=False): # safe_ marks thread safety
     self.in_queue.put((method, args, sync))
     interrupt = lldb.SBEvent(self.CTRL_VOICE, "the_sound")
     self.interrupter.BroadcastEvent(interrupt)
@@ -39,7 +39,7 @@ class LLController(Thread):
     self.safe_call(self.exec_command, [cmd, ' '.join(args)])
 
   def safe_exit(self):
-    self.safe_call(None, None)
+    self.safe_call(None)
     self.join()
 
   def complete_command(self, arg, line, pos):
@@ -97,7 +97,6 @@ class LLController(Thread):
     # FIXME use do_attach/do_detach to handle attach/detach subcommands.
     if args.startswith("la"): # launch
       if self.process is not None and self.process.IsValid():
-        pid = self.process.GetProcessID()
         self.process.Destroy()
 
       (success, result) = self.get_command_result("process", args)
@@ -107,7 +106,6 @@ class LLController(Thread):
         return
 
       # launch succeeded, store pid and add some event listeners
-      self.pid = self.process.GetProcessID()
       self.process.GetBroadcaster().AddListener(self.listener, lldb.SBProcess.eBroadcastBitStateChanged)
 
       self.vifx.log("%s" % result, 0)
@@ -120,12 +118,26 @@ class LLController(Thread):
       if not self.process or not self.process.IsValid():
         self.vifx.log("No valid process to kill.")
         return
+      pid = self.process.GetProcessID()
       if not self.process.Destroy().Success():
         self.vifx.log("Error during kill: " + str(error))
       else:
-        self.vifx.log("Killed process (pid=%d)" % self.pid)
+        self.vifx.log("Killed process (pid=%d)" % pid)
     else:
       self.exec_command("process", args)
+
+  def do_target(self, args):
+    """ Handle 'target' command. """
+    (success, result) = self.get_command_result("target", args)
+    if not success:
+      self.vifx.log(str(result))
+    elif args.startswith('c'): # create
+      self.target = self.dbg.GetSelectedTarget()
+      self.vifx.log(str(result), 0)
+    elif args.startswith('d'): # delete
+      self.target = None
+      self.process = None
+      self.vifx.log(str(result), 0)
 
   def do_attach(self, process_name):
     """ Handle process attach. """
@@ -137,24 +149,13 @@ class LLController(Thread):
 
     # attach succeeded, initialize variables, listeners
     self.process = self.target.process
-    self.pid = self.process.GetProcessID()
     self.process.GetBroadcaster().AddListener(self.listener, lldb.SBProcess.eBroadcastBitStateChanged)
     self.vifx.log(str(result), 0)
 
   def do_detach(self):
     """ Handle process detach. """
     if self.process is not None and self.process.IsValid():
-      pid = self.process.GetProcessID()
       self.process.Detach()
-
-  def do_target(self, args):
-    """ Handle 'target' command. """
-    (success, result) = self.get_command_result("target", args)
-    if not success:
-      self.vifx.log(str(result))
-    elif args.startswith('c'): # create
-      self.target = self.dbg.GetSelectedTarget()
-      self.vifx.log(str(result), 0)
 
   def do_command(self, args):
     """ Handle 'command' command. """

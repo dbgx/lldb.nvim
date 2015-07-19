@@ -103,7 +103,7 @@ class LLInterface(object):
 
   @neovim.command('LLdetach')
   def _detach(self):
-    self.ctrl.safe_call(self.ctrl.do_detach, [])
+    self.ctrl.safe_call(self.ctrl.do_detach)
 
   @neovim.command('LLapropos', nargs='*', complete='custom,LLComplete')
   def _apropos(self, args):
