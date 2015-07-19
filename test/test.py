@@ -55,7 +55,7 @@ iface._continue([])
 #iface._refresh()
 sleep(10)
 iface._continue([])
-
+sleep(delay)
 finalmsg = ('-- End of test --\\n'
             'Make sure there were no errors in python console.')
 #vim.command('echo "%s"' % finalmsg)

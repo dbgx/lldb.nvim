@@ -208,9 +208,12 @@ class LLController(Thread):
         if event.GetType() == self.CTRL_VOICE:
           try:
             method, args, sync = self.in_queue.get(False)
-            print 'method: %s' % method.func_name
             if method is None:
               break
+            args_str = ''
+            if len(args) > 0:
+              args_str = repr(args[0]) + (', ...' if len(args) > 1 else '')
+            print 'Calling %s(%s)' % (method.func_name, args_str)
             ret = method(*args)
             if sync:
               self.out_queue.put(ret)
@@ -221,6 +224,7 @@ class LLController(Thread):
           self.update_ui(goto_file=True, buf='!all')
       else: # Timed out
         pass
+    print 'Terminating...'
     self.dbg.Terminate()
     self.dbg = None
 

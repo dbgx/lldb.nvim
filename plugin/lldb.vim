@@ -103,7 +103,6 @@ function! LLGetExpression()
 endfun
 
 nnoremap <M-b> :call LLBreakswitch(bufnr('%'), getcurpos()[1])<CR>
-nnoremap <F5> :LLrefresh<CR>
 nnoremap <S-F5> :call LLUpdateLayout()<CR>
 nnoremap <F8> :LLcontinue<CR>
 nnoremap <F9> :LLprint <C-R>=expand('<cword>')<CR>
