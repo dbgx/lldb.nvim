@@ -1,16 +1,13 @@
 # LLDB Neovim Frontend
 
-This plugin provides lldb debbuging integration including
+This plugin provides LLDB debugger integration for Neovim, featuring:
 
-* breakpoints displayed as signs
-* backtrace view
-* locals view
-* threads view
-* disassembly and registers view
-* customizable layout
-* and more ...
-
-Arbitrary lldb commands can be invoked as well.
+* Breakpoints and program counter displayed as signs
+* Buffers showing backtrace, breakpoints, threads, local variables, registers and disassembly
+* Supports almost all LLDB commands from vim-command line (with tab-completion)
+* Event-based UI updates
+* Non-blocking UI
+* Customizable Layout
 
 **NOTE** : This is a fork of https://github.com/gilligan/vim-lldb/, which is a fork of
 the plugin that is part of the llvm distribution. The original can be found at

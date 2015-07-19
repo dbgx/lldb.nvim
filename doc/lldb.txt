@@ -1,24 +1,25 @@
 *lldb.txt* A plugin that enables debugging from your favourite editor
 
-                        _                 ____    ____
-                 _   __(_)___ ___        / / /___/ / /_
-                | | / / / __ `__ \______/ / / __  / __ \
-                | |/ / / / / / / /_____/ / / /_/ / /_/ /
-                |___/_/_/ /_/ /_/     /_/_/\__,_/_.___/
+                   ____    ____                 _
+                  / / /___/ / /_    ____ _   __(_)___ ___
+                 / / / __  / __ \  / __ \ | / / / __ `__ \
+                / / / /_/ / /_/ / / / / / |/ / / / / / / /
+               /_/_/\__,_/_.___(_)_/ /_/|___/_/_/ /_/ /_/
 
-                   LLDB Debugger Ingegration For VIM
+                  LLDB Debugger Ingegration For Neovim
 
 ==============================================================================
 
-CONTENTS                                                       *lldb-contents*
+CONTENTS                                        *lldb-contents*
 
     1. Introduction .................... |lldb-intro|
-    2. Getting Started ................. |lldb-start|
-    3. Commands ........................ |lldb-commands|
-    4. Mappings ........................ |lldb-mappings|
-    4. License ......................... |lldb-license|
-    5. Bugs ............................ |lldb-bugs|
-    6. Contributing .................... |lldb-contributing|
+    2. Features ........................ |lldb-features|
+    3. Getting Started ................. |lldb-start|
+    4. Commands ........................ |lldb-commands|
+    5. Mappings ........................ |lldb-mappings|
+    6. License ......................... |lldb-license|
+    7. Issues and Bugs ................. |lldb-bugs|
+    8. Contributing .................... |lldb-contributing|
 
 
 Original Author:    Daniel Malea <daniel.malea@intel.com>
@@ -42,6 +43,16 @@ to use Neovim's new API so that the user interface is much more responsive.
 Also, the focus has been to simplify the code wherever possible, so that
 it will be easier to debug and extend.
 
+FEATURES                                        *lldb-features*
+
+* Buffers showing backtrace, breakpoints, threads, locals, registers and
+  disassembly.
+* Tab-completion for LLDB commands
+* Event-based UI updates
+* Non-blocking UI
+  Exception: Blocks when fetching the tab-completion list.
+* Customizable Layout
+  See |lldb-customizing|.
 
 GETTING STARTED                                 *lldb-start*
 
@@ -82,8 +93,9 @@ Alternatively, you can kill it using: >
 
 CUSTOMIZING                                     *lldb-customizing*
 
-There are a 2 global options you can edit to change the layout. Default
-values are specified:
+There are a 2 global variables you can edit to change the layout. You can edit
+these variables at runtime and press |<S-F5>| to update the layout. Default
+values are specified below:
 
 *g:lldb_layout_windows* = [ 'backtrace', 'breakpoints', 'disassembly',
                         \ 'locals', 'registers', 'threads' ]
@@ -141,10 +153,6 @@ Some commands have modified behaviour.
 :LLcontinue             Continue execution of the process until the next
                         breakpoint is hit or the process exits.
 
-                                                *lldb-:LLrefresh*
-:LLrefresh              Checks whether there are any pending debugger events
-                        to be processed, and updates the debugger info buffers.
-
                                                 *lldb-:LLstep*
 :LLstep                 Step into the current function call.
 
@@ -184,9 +192,6 @@ The following are the default key mappings:
                                                 *<M-b>*
 <M-b>                   Insert breakpoint at cursor location.
 
-                                                *<F5>*
-<F5>                    Executes |:LLrefresh|
-
                                                 *<S-F5>*
 <S-F5>                  Resets the window layout.
 
@@ -205,9 +210,13 @@ LICENSE                                         *lldb-license*
 
 Same as Vim itself. See |license|.
 
-BUGS                                            *lldb-bugs*
+ISSUES AND BUGS                                 *lldb-bugs*
 
-If you run into a bug use the github issue tracker to report it:
+Please make sure that the test script lldb.nvim/test/run.sh executes without
+problems. If not, please discuss it at Gitter:
+https://gitter.im/critiqjo/lldb.nvim
+
+If you run into a bug, use the Github issue tracker to report it:
 https://github.com/critiqjo/lldb.nvim/issues
 
 CONTRIBUTING                                    *lldb-contributing*
