@@ -1,5 +1,3 @@
-from lldb import eStateStopped
-
 def resolve_line_entry(le):
   # path = os.path.join(le.GetFileSpec().GetDirectory(), le.GetFileSpec().GetFilename())
   return (le.GetFileSpec().fullpath, le.GetLine(), le.GetColumn())
@@ -39,6 +37,7 @@ def get_bploc_tuples(bp, logger):
   return locs
 
 def get_process_stat(target):
+  from lldb import eStateStopped
   (proc, stat) = (None, '')
   if not target or not target.IsValid():
     stat = 'Target does not exist.'

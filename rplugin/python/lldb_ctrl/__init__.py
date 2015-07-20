@@ -11,12 +11,15 @@ class LLInterface(object):
   def __init__(self, vim):
     self.vim = vim
     if not lldb_success:
-      # will not reach here from vim ui (since plugin manifest won't get
-      # generated due to the ImportError in LLController initialization)
-      pass
+      self.vifx.logger.critical('LLDB could not be imported!')
+      # ImportError will be raised in LLController init below.
     self.ctrl = LLController(self)
     self.ctrl.start()
     vim.command('au VimLeavePre * call LLExit()')
+
+    import logging
+    self.logger = logging.getLogger(__name__)
+    self.logger.setLevel(logging.INFO)
 
   def safe_vim_eval(self, expr):
     vim = self.vim
@@ -31,7 +34,7 @@ class LLInterface(object):
   def log(self, msg, level=1):
     """ Execute echom in vim using appropriate highlighting. """
     level_map = ['None', 'WarningMsg', 'ErrorMsg']
-    msg = msg.replace('"', '\\"').replace('\n', '\\n')
+    msg = msg.strip().replace('"', '\\"').replace('\n', '\\n')
     self.safe_vim_command('echohl %s | echom "%s" | echohl None' % (level_map[level], msg))
 
   def buffer_add(self, name):

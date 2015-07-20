@@ -1,4 +1,4 @@
-import os, re, sys
+import os, sys
 import lldb
 from threading import Thread
 
@@ -47,15 +47,11 @@ class LLController(Thread):
     result = lldb.SBStringList()
     num = self.interpreter.HandleCompletion(line, pos, 1, -1, result)
 
-    if num == -1:
-      # FIXME: insert completion character... what's a completion character?
-      pass
-    elif num == -2:
-      # FIXME: replace line with result.GetStringAtIndex(0)
+    if num == -2: # encountered history repeat character ?
       pass
 
     if result.GetSize() > 0:
-      results =  filter(None, [result.GetStringAtIndex(x) for x in range(result.GetSize())])
+      results = filter(None, (result.GetStringAtIndex(x) for x in range(result.GetSize())))
       return results
     else:
       return []
@@ -211,21 +207,16 @@ class LLController(Thread):
             method, args, sync = self.in_queue.get(False)
             if method is None:
               break
-            args_str = ''
-            if len(args) > 0:
-              args_str = repr(args[0]) + (', ...' if len(args) > 1 else '')
-            print 'Calling %s(%s)' % (method.func_name, args_str)
+            self.vifx.logger.info('Calling %s with %s' % (method.func_name, repr(args)))
             ret = method(*args)
             if sync:
               self.out_queue.put(ret)
           except Empty:
-            print 'Empty interrupt!'
-            pass
+            self.vifx.logger.info('Empty interrupt!')
         else:
           self.update_ui(goto_file=True, buf='!all')
       else: # Timed out
         pass
-    print 'Terminating...'
     self.dbg.Terminate()
     self.dbg = None
-
+    self.vifx.logger.info('Terminated!')
