@@ -170,7 +170,7 @@ class LLController(Thread):
       bps = self.ui.bp_list[key]
       args = "delete %s" % " ".join([str(b.GetID()) for b in bps])
     else:
-      path = self.vifx.get_buffer_from_nr(bufnr).name
+      path = self.vifx.get_buffer_name(bufnr)
       args = "set -f %s -l %d" % (path, line)
     self.do_breakpoint(args)
 

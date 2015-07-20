@@ -129,13 +129,7 @@ class UI:
     elif content[0] == 'cb_on_target':
       results = content[1](target)
     bufnr = self.buf_map[buf]
-    b = self.vifx.get_buffer_from_nr(bufnr)
-    if b is None:
-      self.vifx.log('Invalid buffer map!')
-    else:
-      b.options['ma'] = True
-      b[:] = results
-      b.options['ma'] = False
+    self.vifx.update_noma_buffer(bufnr, results)
 
   def update(self, target, commander, status='', goto_file=False, exclude_buf=[]):
     """ Updates signs, buffers, and prints status to the vim status line. """
