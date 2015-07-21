@@ -83,6 +83,9 @@ class UI:
 
     self.bp_list = {}
     if target is None or not target.IsValid():
+      for (key, sign) in self.bp_signs.items():
+        if not sign.hidden:
+          sign.hide()
       return
 
     needed_bps = {}
@@ -107,12 +110,14 @@ class UI:
         sign.hide()
         del self.bp_signs[key]
       else:
+        if bp_signs[key].hidden:
+          bp_signs[key].show()
         del new_bps[key]
 
     # Show all (new) breakpoint signs
     for ((bufnr, line), resolved) in new_bps.items():
-      if not self.pc_signs.has_key((bufnr, line)):
-        self.bp_signs[(bufnr, line)] = BreakpointSign(self.vifx, bufnr, line, resolved)
+      self.bp_signs[(bufnr, line)] = BreakpointSign(self.vifx, bufnr, line, resolved,
+                                                    self.pc_signs.has_key((bufnr, line)))
 
   def update_buffer(self, buf, target, commander):
     self.buf_map_check()

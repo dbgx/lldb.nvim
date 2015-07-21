@@ -78,7 +78,6 @@ class LLController(Thread):
 
   def do_stop(self):
     """ End the debug session. """
-    # FIXME preserve breakpoints
     self.do_target("delete")
 
   def do_frame(self, args):
@@ -135,6 +134,14 @@ class LLController(Thread):
     elif args.startswith('c'): # create
       self.target = self.dbg.GetSelectedTarget()
       self.vifx.log(str(result), 0)
+      if len(self.ui.bp_signs) > 0: # FIXME remove in favor of configuration file
+        bp_bufs = dict(self.ui.bp_signs.keys()).keys()
+        def bpfile_mapper(b):
+          if b.number in bp_bufs:
+            return (b.number, b.name)
+        bp_filemap = dict(self.vifx.map_buffers(bpfile_mapper)[:-1])
+        for bufnr, line in self.ui.bp_signs.keys():
+          self.exec_command("breakpoint", "set -f %s -l %d" % (bp_filemap[bufnr], line))
       self.update_ui(buf='breakpoints')
     elif args.startswith('d'): # delete
       self.target = None
