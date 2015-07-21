@@ -66,6 +66,7 @@ class UI:
         continue
 
       (tid, fname, line, col) = loc
+      self.vifx.logger.info("Got pc loc: %s" % repr(loc))
       is_selected = thread.GetIndexID() == process.GetSelectedThread().GetIndexID()
       if os.path.exists(fname):
         bufnr = self.vifx.buffer_add(fname)

@@ -29,6 +29,10 @@ class LLController(Thread):
     super(LLController, self).__init__()
 
   def safe_call(self, method, args=[], sync=False): # safe_ marks thread safety
+    if self.dbg is None:
+      self.vifx.logger.critical("Debugger was terminated!" +
+          (" Attempted calling %s" % method.func_name if method else ""))
+      return
     self.in_queue.put((method, args, sync))
     interrupt = lldb.SBEvent(self.CTRL_VOICE, "the_sound")
     self.interrupter.BroadcastEvent(interrupt)
@@ -212,10 +216,12 @@ class LLController(Thread):
       self.vifx.log(output)
 
   def run(self):
+    import traceback
     from Queue import Empty
+    to_count = 0
     while True:
       event = lldb.SBEvent()
-      if self.listener.WaitForEvent(8, event):
+      if self.listener.WaitForEvent(30, event): # 30 second timeout
         if event.GetType() == self.CTRL_VOICE:
           try:
             method, args, sync = self.in_queue.get(False)
@@ -227,10 +233,17 @@ class LLController(Thread):
               self.out_queue.put(ret)
           except Empty:
             self.vifx.logger.info('Empty interrupt!')
+          except Exception:
+            self.vifx.logger.critical(traceback.format_exc())
         else:
+          while self.listener.PeekAtNextEvent(event) and event.GetType() != self.CTRL_VOICE:
+            self.listener.GetNextEvent(event) # try to prevent flickering
           self.update_ui(buf='!all')
       else: # Timed out
-        pass
+        to_count += 1
+        if to_count > 172800: # 60 days worth idleness! barrier to prevent infinite loop
+          self.vifx.logger.critical('Broke the loop barrier!')
+          break
     self.dbg.Terminate()
     self.dbg = None
     self.vifx.logger.info('Terminated!')
