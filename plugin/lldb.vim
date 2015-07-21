@@ -26,6 +26,41 @@ function! LLBuffersInit()
   return s:buffer_map
 endfun
 
+" takes one optional argument to specify whether to delete buffers
+function! LLTabCheckClose(...)
+  if empty(s:buffer_map)
+    return
+  endif
+  let tabcount = 0
+  for i in range(len(g:lldb_layout_cmds))
+    if g:lldb_layout_cmds[i] == 'T'
+      let tabcount += 1
+    endif
+  endfor
+  if tabcount < tabpagenr('$')
+    for i in range(tabcount)
+      let tabnr = tabcount - i
+      for bufnr in tabpagebuflist(tabnr)
+        if index(g:lldb_layout_windows, bufname(bufnr)) >= 0
+          exe 'tabclose ' . tabnr
+          break
+        endif
+      endfor
+    endfor
+  else
+    echom 'Please close unwanted tab(s) manually...'
+  endif
+  if a:0 == 0 || (a:0 > 0 && !a:1)
+    return
+  endif
+  for bname in s:buffers
+    let bnr = s:buffer_map[bname]
+    exe 'silent bd ' . s:buffer_map[bname]
+    call setbufvar(bnr, '&bt', 'nofile')
+  endfor
+  let s:buffer_map = {}
+endfun
+
 if !exists('g:lldb_layout_windows')
   let g:lldb_layout_windows = s:buffers
 endif
@@ -102,8 +137,10 @@ function! LLGetExpression()
   return join(lines, "\n")
 endfun
 
+command! LLredraw call LLTabCheckClose() | call LLUpdateLayout()
+
 nnoremap <M-b> :call LLBreakswitch(bufnr('%'), getcurpos()[1])<CR>
-nnoremap <S-F5> :call LLUpdateLayout()<CR>
+nnoremap <S-F5> :LLredraw<CR>
 nnoremap <F8> :LLcontinue<CR>
 nnoremap <F9> :LLprint <C-R>=expand('<cword>')<CR>
 nnoremap <S-F9> :LLpo <C-R>=expand('<cword>')<CR>

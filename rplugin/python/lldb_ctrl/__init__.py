@@ -119,6 +119,11 @@ class LLInterface(object):
     # FIXME: Remove in favor of `LLprocess launch` and `LLstart`?
     self.ctrl.safe_call(self.ctrl.do_process, ['launch ' + ' '.join(args)])
 
+  @neovim.command('LLstop')
+  def _stop(self):
+    self.ctrl.safe_call(self.ctrl.do_stop)
+    self.safe_vim_command('call LLTabCheckClose(1)')
+
   @neovim.command('LLstart', nargs='*')
   def _start(self, args):
     # TODO: Take no arguments; launch as specified in the configuration file

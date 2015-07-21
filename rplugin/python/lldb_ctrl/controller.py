@@ -76,6 +76,11 @@ class LLController(Thread):
     else:
       self.ui.update_buffer(buf, self.target, commander)
 
+  def do_stop(self):
+    """ End the debug session. """
+    # FIXME preserve breakpoints
+    self.do_target("delete")
+
   def do_frame(self, args):
     """ Handle 'frame' command. """
     self.exec_command("frame", args)
