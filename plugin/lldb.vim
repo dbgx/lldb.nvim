@@ -140,6 +140,7 @@ endfun
 command! LLredraw call LLTabCheckClose() | call LLUpdateLayout()
 
 nnoremap <M-b> :call LLBreakswitch(bufnr('%'), getcurpos()[1])<CR>
+nnoremap <F5> :LLrefresh<CR>
 nnoremap <S-F5> :LLredraw<CR>
 nnoremap <F8> :LLcontinue<CR>
 nnoremap <F9> :LLprint <C-R>=expand('<cword>')<CR>

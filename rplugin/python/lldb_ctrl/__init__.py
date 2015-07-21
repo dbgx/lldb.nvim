@@ -126,6 +126,10 @@ class LLInterface(object):
   def _exit(self, args):
     self.ctrl.safe_exit()
 
+  @neovim.command('LLrefresh')
+  def _refresh(self):
+    self.ctrl.safe_call(self.ctrl.update_ui, [False, '!all'])
+
   @neovim.command('LLrun', nargs='*')
   def _run(self, args):
     # FIXME: Remove in favor of `LLprocess launch` and `LLstart`?
@@ -171,7 +175,8 @@ class LLInterface(object):
 
   @neovim.command('LLdisassemble', nargs='*', complete='custom,LLComplete')
   def _disassemble(self, args):
-    self.ctrl.safe_execute("disassemble", args)
+    self.ctrl.safe_call(self.ctrl.do_disassemble, [' '.join(args)])
+    self.safe_vim_command('drop disassembly')
 
   @neovim.command('LLexpression', nargs='*', complete='custom,LLComplete')
   def _expression(self, args):

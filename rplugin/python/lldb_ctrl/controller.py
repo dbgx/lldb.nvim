@@ -177,6 +177,10 @@ class LLController(Thread):
     if args.startswith('so'): # source
       self.update_ui(buf='breakpoints')
 
+  def do_disassemble(self, args):
+    self.ui._content_map['disassembly'][1][1] = args
+    self.update_ui(buf='disassembly')
+
   def do_breakswitch(self, bufnr, line):
     """ Switch breakpoint at the specified line in the buffer. """
     key = (bufnr, line)
