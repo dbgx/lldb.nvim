@@ -17,12 +17,11 @@ def is_same_file(a, b):
   return a in b or b in a
 
 class UI:
-  _disasm_lines = 20 # FIXME add user customizability
   _content_map = {
-      "disassembly": ( "command", ("disassemble", "-c %d -p" % _disasm_lines) ),
-      "breakpoints": ( "command", ("breakpoint", "list") ),
-      "threads": ( "command", ("thread", "list") ),
-      "backtrace": ( "command", ("bt", "") ),
+      "backtrace": ( "command", ["bt", ""] ),
+      "breakpoints": ( "command", ["breakpoint", "list"] ),
+      "disassembly": ( "command", ["disassemble", "-c 20 -p"] ),
+      "threads": ( "command", ["thread", "list"] ),
       "locals": ( "cb_on_target", get_locals_content ),
       "registers": ( "cb_on_target", get_registers_content ),
   }
@@ -33,21 +32,18 @@ class UI:
 
     self.buf_map = {}
 
-    # map of tuples (filename, line) --> SBBreakpoint
-    self.markedBreakpoints = {}
-
     # Currently shown signs
-    self.bp_signs = {}
-    self.bp_list = {}
+    self.bp_signs = {} # maps (bufnr, line) -> <BreakpointSign object>
+    self.bp_list = {} # maps (bufnr, line) -> [<SBBreakpoint object>, ...]
     self.pc_signs = {}
 
   def buf_map_check(self):
     if not self.buf_map:
       self.buf_map = self.vifx.buf_init()
 
-  def update_pc(self, target, goto_file):
+  def update_pc(self, target, jump2pc):
     """ Place the PC sign on the PC location of each thread's selected frame.
-        If goto_file is True, the cursor should (FIXME) move to the PC location
+        If jump2pc is True, the cursor should (FIXME) move to the PC location
         in the selected frame of the selected thread.
     """
 
@@ -59,7 +55,7 @@ class UI:
     if target is None or not target.IsValid():
       return
     process = target.GetProcess()
-    if process is None or not process.IsValid():
+    if process is None or not process.IsValid() or not process.is_alive:
       return
 
     # Show a PC marker for each thread
@@ -79,17 +75,17 @@ class UI:
       sign = PCSign(self.vifx, bufnr, line, is_selected)
       self.pc_signs[(bufnr, line)] = sign
 
-      if is_selected and goto_file:
+      if is_selected and jump2pc:
         self.vifx.sign_jump(bufnr, sign.id)
 
   def update_breakpoints(self, target, hard_update=False):
     """ Decorates buffer with signs corresponding to breakpoints in target. """
 
+    self.bp_list = {}
     if target is None or not target.IsValid():
       return
 
     needed_bps = {}
-    self.bp_list = {}
     for bp_index in range(target.GetNumBreakpoints()):
       bp = target.GetBreakpointAtIndex(bp_index)
       bplocs = get_bploc_tuples(bp, self.vifx.log)
@@ -131,9 +127,9 @@ class UI:
     bufnr = self.buf_map[buf]
     self.vifx.update_noma_buffer(bufnr, results)
 
-  def update(self, target, commander, status='', goto_file=False, exclude_buf=[]):
+  def update(self, target, commander, status='', jump2pc=False, exclude_buf=[]):
     """ Updates signs, buffers, and prints status to the vim status line. """
-    self.update_pc(target, goto_file)
+    self.update_pc(target, jump2pc)
 
     for buf in UI._content_map.keys():
       if buf not in exclude_buf:

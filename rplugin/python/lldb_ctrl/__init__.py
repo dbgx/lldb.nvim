@@ -140,9 +140,9 @@ class LLInterface(object):
   def _breakpoint(self, args):
     self.ctrl.safe_call(self.ctrl.do_breakpoint, [' '.join(args)])
 
-  @neovim.command('LLbt', nargs='*', complete='custom,LLComplete')
-  def _bt(self, args):
-    self.ctrl.safe_execute("bt", args)
+  @neovim.command('LLbt')
+  def _bt(self):
+    self.safe_vim_command('drop backtrace')
 
   @neovim.command('LLcommand', nargs='*', complete='custom,LLComplete')
   def _command(self, args):
@@ -194,15 +194,15 @@ class LLInterface(object):
 
   @neovim.command('LLregexpattach', nargs='*', complete='custom,LLComplete')
   def _regexpattach(self, args):
-    self.ctrl.safe_execute("_regexp-attach", args)
+    self.ctrl.safe_call(self.ctrl.do_attach, [' '.join(args)])
 
   @neovim.command('LLregexpbreak', nargs='*', complete='custom,LLComplete')
   def _regexpbreak(self, args):
     self.ctrl.safe_execute("_regexp-break", args)
 
-  @neovim.command('LLregexpbt', nargs='*', complete='custom,LLComplete')
-  def _regexpbt(self, args):
-    self.ctrl.safe_execute("_regexp-bt", args)
+  @neovim.command('LLregexpbt')
+  def _regexpbt(self):
+    self.safe_vim_command('drop backtrace')
 
   @neovim.command('LLregexptbreak', nargs='*', complete='custom,LLComplete')
   def _regexptbreak(self, args):
@@ -259,6 +259,7 @@ class LLInterface(object):
 
   @neovim.command('LLdown', nargs='?', complete='custom,LLComplete')
   def _down(self, args):
+    n = "1" if len(args) == 0 else args[0]
     self.ctrl.safe_call(self.ctrl.do_frame, ['select -r -' + n])
 
   @neovim.command('LLstep', nargs='*', complete='custom,LLComplete')

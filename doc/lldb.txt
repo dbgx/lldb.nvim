@@ -212,12 +212,17 @@ Same as Vim itself. See |license|.
 
 ISSUES AND BUGS                                 *lldb-bugs*
 
-Please make sure that the test script lldb.nvim/test/run.sh executes without
-problems. If not, please discuss it at Gitter:
+When in doubt, please feel free to discuss at Gitter:
 https://gitter.im/critiqjo/lldb.nvim
 
 If you run into a bug, use the Github issue tracker to report it:
 https://github.com/critiqjo/lldb.nvim/issues
+
+It would be nice if you could set the following environment variable: >
+
+    export NVIM_PYTHON_LOG_FILE=/tmp/nvlog
+
+and post the log along with the bug report.
 
 CONTRIBUTING                                    *lldb-contributing*
 

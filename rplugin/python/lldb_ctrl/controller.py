@@ -56,11 +56,11 @@ class LLController(Thread):
     else:
       return []
 
-  def update_ui(self, status='', goto_file=False, buf=None):
+  def update_ui(self, jump2pc=True, buf=None, status=''):
     """ Update lldb buffers and signs placed in source files.
         @param status
             The message to be printed on success on the vim status line.
-        @param goto_file
+        @param jump2pc
             Whether or not to move the cursor to the program counter (PC).
         @param buf
             If None, all buffers and signs excepts breakpoints would be updated.
@@ -70,9 +70,9 @@ class LLController(Thread):
     excl = ['breakpoints']
     commander = self.get_command_result
     if buf is None:
-      self.ui.update(self.target, commander, status, goto_file, excl)
+      self.ui.update(self.target, commander, status, jump2pc, excl)
     elif buf == '!all':
-      self.ui.update(self.target, commander, status, goto_file)
+      self.ui.update(self.target, commander, status, jump2pc)
     else:
       self.ui.update_buffer(buf, self.target, commander)
 
@@ -80,13 +80,13 @@ class LLController(Thread):
     """ Handle 'frame' command. """
     self.exec_command("frame", args)
     if args.startswith('s'): # select
-      self.update_ui(goto_file=True)
+      self.update_ui()
 
   def do_thread(self, args):
     """ Handle 'thread' command. """
     self.exec_command("thread", args)
     if args.startswith('se'): # select
-      self.update_ui(goto_file=True)
+      self.update_ui()
 
   def do_process(self, args):
     """ Handle 'process' command. """
@@ -96,10 +96,10 @@ class LLController(Thread):
         self.process.Destroy()
 
       (success, result) = self.get_command_result("process", args)
-      self.process = self.target.process
       if not success:
         self.vifx.log("Error during launch: " + str(result))
         return
+      self.process = self.target.process
 
       # launch succeeded, store pid and add some event listeners
       self.process.GetBroadcaster().AddListener(self.listener, lldb.SBProcess.eBroadcastBitStateChanged)
@@ -130,10 +130,12 @@ class LLController(Thread):
     elif args.startswith('c'): # create
       self.target = self.dbg.GetSelectedTarget()
       self.vifx.log(str(result), 0)
+      self.update_ui(buf='breakpoints')
     elif args.startswith('d'): # delete
       self.target = None
       self.process = None
       self.vifx.log(str(result), 0)
+      self.update_ui(buf='!all')
 
   def do_attach(self, process_name):
     """ Handle process attach. """
@@ -183,7 +185,7 @@ class LLController(Thread):
     self.interpreter.HandleCommand(cmd, result)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
-  def exec_command(self, command, args, update_level=0, goto_file=False):
+  def exec_command(self, command, args, update_level=0, jump2pc=False):
     """ Run command in the interpreter and:
         + Print result on the vim status line (update_level >= 0)
         + Update UI (update_level >= 1)
@@ -193,7 +195,7 @@ class LLController(Thread):
       if update_level == 0 and len(output) > 0:
         self.vifx.log(output, 0)
       if update_level == 1:
-        self.update_ui(output, goto_file)
+        self.update_ui(jump2pc, status=output)
     else:
       self.vifx.log(output)
 
@@ -214,7 +216,7 @@ class LLController(Thread):
           except Empty:
             self.vifx.logger.info('Empty interrupt!')
         else:
-          self.update_ui(goto_file=True, buf='!all')
+          self.update_ui(buf='!all')
       else: # Timed out
         pass
     self.dbg.Terminate()

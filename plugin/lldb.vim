@@ -12,15 +12,15 @@ let s:buffer_map = {}
 let s:buffers = [ 'backtrace', 'breakpoints', 'disassembly', 'locals', 'registers', 'threads' ]
 function! LLBuffersInit()
   let u_bnr = bufnr('%')
-  for i in range(len(s:buffers))
-    let bnr = bufnr(s:buffers[i], 1)  " FIXME: add a unique prefix/suffix?
+  for bname in s:buffers
+    let bnr = bufnr(bname, 1)  " FIXME: add a unique prefix/suffix?
     call setbufvar(bnr, '&bt', 'nofile')
     call setbufvar(bnr, '&swf', 0)
     call setbufvar(bnr, '&ma', 0)
-    exe 'b ' . bnr
+    exe 'silent b ' . bnr
     call setbufvar(bnr, '&nu', 0)
     call setbufvar(bnr, '&rnu', 0)
-    let s:buffer_map[s:buffers[i]] = bnr
+    let s:buffer_map[bname] = bnr
   endfor
   exe 'b ' . u_bnr
   return s:buffer_map
