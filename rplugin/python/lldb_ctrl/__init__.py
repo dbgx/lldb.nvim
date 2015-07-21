@@ -56,29 +56,41 @@ class LLInterface(object):
     """ Hide a sign with specified id. """
     self.safe_vim_command("sign unplace %d" % sign_id)
 
-  def get_buffer_name(self, nr):
-    """ Get the buffer data structure from buffer number. """
+  def map_buffers(self, fn):
+    """ Does a map using fn callback on all buffer object and returns a list.
+        @param fn: callback function which takes buffer object as a parameter.
+                   If None is returned, the item is ignored.
+                   If a StopIteration is raised, the loop breaks.
+        @return: The last item in the list returned is a placeholder indicating:
+                 * completed iteration, if None is present
+                 * otherwise, if StopIteration was raised, the message would be the last item
+    """
     vim = self.vim
-    out_q = Queue()
-    def get_buffer_name_inner():
+    out_q = Queue(maxsize=1)
+    def map_buffers_inner():
+      mapped = []
+      breaked = False
       for b in vim.buffers:
-        if b.number == nr:
-          out_q.put(b.name)
+        try:
+          ret = fn(b)
+          if ret is not None:
+            mapped.append(ret)
+        except StopIteration as e:
+          mapped.append(e.message)
+          breaked = True
           break
-    vim.session.threadsafe_call(get_buffer_name_inner)
+      if not breaked:
+        mapped.append(None)
+      out_q.put(mapped)
+    vim.session.threadsafe_call(map_buffers_inner)
     return out_q.get()
 
-  def update_noma_buffer(self, nr, lines):
-    """ Get the buffer data structure from buffer number. """
-    vim = self.vim
-    def update_noma_buffer_inner():
-      for b in vim.buffers:
-        if b.number == nr:
-          b.options['ma'] = True
-          b[:] = lines
-          b.options['ma'] = False
-          break
-    vim.session.threadsafe_call(update_noma_buffer_inner)
+  def get_buffer_name(self, nr):
+    """ Get the buffer name given its number. """
+    def name_mapper(b):
+      if b.number == nr:
+        raise StopIteration(b.name)
+    return self.map_buffers(name_mapper)[0]
 
   def buf_init(self):
     """ Create all lldb buffers and initialize the buffer map. """

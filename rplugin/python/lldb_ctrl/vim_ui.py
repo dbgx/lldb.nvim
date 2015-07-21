@@ -125,7 +125,15 @@ class UI:
     elif content[0] == 'cb_on_target':
       results = content[1](target)
     bufnr = self.buf_map[buf]
-    self.vifx.update_noma_buffer(bufnr, results)
+
+    def update_mapper(b):
+      if b.number == bufnr:
+        b.options['ma'] = True
+        b[:] = results
+        b.options['ma'] = False
+        raise StopIteration
+
+    self.vifx.map_buffers(update_mapper)
 
   def update(self, target, commander, status='', jump2pc=False, exclude_buf=[]):
     """ Updates signs, buffers, and prints status to the vim status line. """
