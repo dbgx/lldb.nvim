@@ -196,13 +196,12 @@ passed through to the command interpreter.
 
 MAPPINGS                                                *lldb-mappings*
 
-The following are the default key mappings:
+<Plug>LLBreakSwitch                             *<Plug>LLBreakSwitch*
+                        Insert breakpoint at cursor location.
 
-                                                        *<M-b>*
-<M-b>                   Insert breakpoint at cursor location.
-
-Additionally, I would recommend setting the following maps:
+I recommend setting the following maps:
 >
+    nmap <M-b> <Plug>LLBreakSwitch
     nnoremap <F5> :LLrefresh<CR>
     nnoremap <S-F5> :LLredraw<CR>
     nnoremap <F8> :LLcontinue<CR>

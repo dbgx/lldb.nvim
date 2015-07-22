@@ -19,7 +19,7 @@ class Middleman(object):
       # ImportError will be raised in Controller init below.
     self.ctrl = Controller(self)
     self.ctrl.start()
-    vim.command('au VimLeavePre * call LLExit()')
+    vim.command('call lldb#remote#init(' + str(vim.channel_id) + ')')
 
   def safe_vim_eval(self, expr):
     vim = self._vim
@@ -45,7 +45,7 @@ class Middleman(object):
 
   def sign_jump(self, bufnr, sign_id):
     """ Try jumping to the specified sign_id in buffer with number bufnr. """
-    self.safe_vim_command("call LLTrySignJump(%d, %d)" % (bufnr, sign_id))
+    self.safe_vim_command("call lldb#util#signjump(%d, %d)" % (bufnr, sign_id))
 
   def sign_place(self, sign_id, name, bufnr, line):
     """ Place a sign at the specified location. """
@@ -94,8 +94,12 @@ class Middleman(object):
 
   def buf_init(self):
     """ Create all lldb buffers and initialize the buffer map. """
-    buf_map = self.safe_vim_eval('LLBuffersInit()')
+    buf_map = self.safe_vim_eval('lldb#layout#init_buffers()')
     return buf_map
+
+  @neovim.rpc_export('exit')
+  def _exit(self):
+    self.ctrl.safe_exit()
 
   @neovim.function('LLBreakswitch')
   def _breakswitch(self, args):
@@ -122,10 +126,6 @@ class Middleman(object):
     results = self.ctrl.safe_call(self.ctrl.complete_command, [arg, line, pos], True)
     return '%s\n' % '\n'.join(results)
 
-  @neovim.function('LLExit', sync=True)
-  def _exit(self, args):
-    self.ctrl.safe_exit()
-
   @neovim.command('LLrefresh')
   def _refresh(self):
     self.ctrl.safe_call(self.ctrl.update_ui, [False, '!all'])
@@ -138,7 +138,7 @@ class Middleman(object):
   @neovim.command('LLstop')
   def _stop(self):
     self.ctrl.safe_call(self.ctrl.do_stop)
-    self.safe_vim_command('call LLTabCheckClose(1)')
+    self.safe_vim_command('call lldb#layout#teardown(1)')
 
   @neovim.command('LLstart', nargs='*')
   def _start(self, args):
