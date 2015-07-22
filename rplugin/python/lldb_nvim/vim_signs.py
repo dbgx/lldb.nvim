@@ -10,8 +10,8 @@ class VimSign(object):
   # unique sign id (for ':sign place')
   sign_id = 100
 
-  def __init__(self, vifx, name, bufnr, line, hidden):
-    self.vifx = vifx
+  def __init__(self, vimx, name, bufnr, line, hidden):
+    self.vimx = vimx
     self.id = VimSign.sign_id
     VimSign.sign_id += 1
     self.name = name
@@ -23,21 +23,21 @@ class VimSign(object):
       self.show()
 
   def show(self):
-    self.vifx.sign_place(self.id, self.name, self.bufnr, self.line)
+    self.vimx.sign_place(self.id, self.name, self.bufnr, self.line)
     self.hidden = False
 
   def hide(self):
-    self.vifx.sign_unplace(self.id)
+    self.vimx.sign_unplace(self.id)
     self.hidden = True
 
 class BreakpointSign(VimSign):
-  def __init__(self, vifx, bufnr, line, resolved, hidden=False):
+  def __init__(self, vimx, bufnr, line, resolved, hidden=False):
     self.resolved = resolved
     name = VimSign.SIGN_BREAKPOINT_RESOLVED if resolved else VimSign.SIGN_BREAKPOINT_UNRESOLVED
-    super(BreakpointSign, self).__init__(vifx, name, bufnr, line, hidden)
+    super(BreakpointSign, self).__init__(vimx, name, bufnr, line, hidden)
 
 class PCSign(VimSign):
-  def __init__(self, vifx, bufnr, line, selected, hidden=False):
+  def __init__(self, vimx, bufnr, line, selected, hidden=False):
     self.selected = selected
     name = VimSign.SIGN_PC_SELECTED if selected else VimSign.SIGN_PC_UNSELECTED
-    super(PCSign, self).__init__(vifx, name, bufnr, line, hidden)
+    super(PCSign, self).__init__(vimx, name, bufnr, line, hidden)

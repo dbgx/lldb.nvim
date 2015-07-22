@@ -42,3 +42,11 @@ started section in the vim-docs (`:h lldb-start`).
 ## General Discussion
 
 [![Join the chat at https://gitter.im/critiqjo/lldb.nvim](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/critiqjo/lldb.nvim?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
+## FAQ
+
+### After recent the recent update, [command] stopped working!
+
+Have you tried `:UpdateRemotePlugins` and restarting Neovim? If you did, and
+the problem persists, please file a bug report (also see `:help lldb-bugs`).
+(I forget this all the time!)

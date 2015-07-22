@@ -4,31 +4,31 @@ from Queue import Queue
 
 lldb_success = check_lldb.probe()
 
-from .controller import LLController
+from .controller import Controller
 
 @neovim.plugin
-class LLInterface(object):
+class Middleman(object):
   def __init__(self, vim):
-    self.vim = vim
-    if not lldb_success:
-      self.vifx.logger.critical('LLDB could not be imported!')
-      # ImportError will be raised in LLController init below.
-    self.ctrl = LLController(self)
-    self.ctrl.start()
-    vim.command('au VimLeavePre * call LLExit()')
-
     import logging
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
 
+    self._vim = vim
+    if not lldb_success:
+      self.logger.critical('LLDB could not be imported!')
+      # ImportError will be raised in Controller init below.
+    self.ctrl = Controller(self)
+    self.ctrl.start()
+    vim.command('au VimLeavePre * call LLExit()')
+
   def safe_vim_eval(self, expr):
-    vim = self.vim
+    vim = self._vim
     out_q = Queue()
     vim.session.threadsafe_call(lambda: out_q.put(vim.eval(expr)))
     return out_q.get()
 
   def safe_vim_command(self, cmd):
-    vim = self.vim
+    vim = self._vim
     vim.session.threadsafe_call(lambda: vim.command(cmd))
 
   def log(self, msg, level=1):
@@ -65,7 +65,7 @@ class LLInterface(object):
                  * completed iteration, if None is present
                  * otherwise, if StopIteration was raised, the message would be the last item
     """
-    vim = self.vim
+    vim = self._vim
     out_q = Queue(maxsize=1)
     def map_buffers_inner():
       mapped = []

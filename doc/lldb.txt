@@ -10,7 +10,7 @@
 
 ==============================================================================
 
-CONTENTS                                        *lldb-contents*
+CONTENTS                                                *lldb-contents*
 
     1. Introduction .................... |lldb-intro|
     2. Features ........................ |lldb-features|
@@ -27,7 +27,7 @@ Forked by:          Tobias Pflug <tobias.pflug@gmail.com>
 Maintainer:         John C F <john.ch.fr@gmail.com>
 License:            Same terms as Vim itself (see |license|)
 
-INTRODUCTION                                    *lldb-intro*
+INTRODUCTION                                            *lldb-intro*
 
 The plugin provides an interface to the lldb debugger allowing for
 convenient debugging sessions inside your favorite editor including
@@ -43,7 +43,7 @@ to use Neovim's new API so that the user interface is much more responsive.
 Also, the focus has been to simplify the code wherever possible, so that
 it will be easier to debug and extend.
 
-FEATURES                                        *lldb-features*
+FEATURES                                                *lldb-features*
 
 * Buffers showing backtrace, breakpoints, threads, locals, registers and
   disassembly.
@@ -54,55 +54,55 @@ FEATURES                                        *lldb-features*
 * Customizable Layout
   See |lldb-customizing|.
 
-GETTING STARTED                                 *lldb-start*
+GETTING STARTED                                         *lldb-start*
 
 To quickly get started compile (with debugging symbols) the source and
-open a source file belonging to the program in Neovim, and execute >
-
+open a source file belonging to the program in Neovim, and execute
+>
     :LLtarget create /path/to/executable
-
+<
 Notice that all built-in commands have tab-completion enabled.
 With cursor on some line in the source file, press <M-b> to set a breakpoint
-at that line. Alternatively, you can execute: >
-
+at that line. Alternatively, you can execute:
+>
     :LLbreakpoint set --name function_name
-
-Now, press <S-F5> or call LLUpdateLayout(), and execute one of >
-
+<
+Now, press <S-F5> or call LLUpdateLayout(), and execute one of
+>
     :LLprocess launch
     :LLprocess launch args
     :LLprocess launch -i stdin_redir_file -o stdout_redir_file args
-
+<
 Once the program reaches the specified breakpoint you will be able to
 inspect state and step through the program using the commands described below.
 
 Don't forget that, since the debugger is asynchronous, you can interrupt an
-unresponsive process using: >
-
+unresponsive process using:
+>
     :LLprocess interrupt
-
-Once it's interrupted, you can select your frame of interest using one of >
-
+<
+Once it's interrupted, you can select your frame of interest using one of
+>
     :LLup [num]
     :LLdown [num]
     :LLframe select <frame-index>
-
-Alternatively, you can kill it using: >
-
+<
+Alternatively, you can kill it using:
+>
     :LLprocess kill
-
-CUSTOMIZING                                     *lldb-customizing*
+<
+CUSTOMIZING                                             *lldb-customizing*
 
 There are a 2 global variables you can edit to change the layout. You can edit
-these variables at runtime and press |<S-F5>| to update the layout. Default
-values are specified below:
+these variables and do |:LLredraw| to update the layout. Default values are
+specified below:
 
-*g:lldb_layout_windows* = [ 'backtrace', 'breakpoints', 'disassembly',
+*g:lldb#layout#windows* = [ 'backtrace', 'breakpoints', 'disassembly',
                         \ 'locals', 'registers', 'threads' ]
                         This is the order in which windows showing the
                         corresponding buffers will be created.
 
-*g:lldb_layout_cmds* = '.TRBBRkRkR'
+*g:lldb#layout#cmds* = '.TRBBRkRkR'
                         This specifies how the windows will be created.
                         T = tab sp
                         R = rightbelow vsp
@@ -110,107 +110,111 @@ values are specified below:
                         A = aboveleft sp
                         L = leftabove vsp
                         . = Next command should show the code buffer.
+                        The buffer which is focused on when invoking LLredraw
+                        will be taken as the code buffer.
 
-COMMANDS                                        *lldb-commands*
+COMMANDS                                                *lldb-commands*
 
 The LLDB command interpreter is exposed to Vim's command mode using the
 ':LL' prefix. Tab-completion is available and will cycle through commands.
 Some commands have modified behaviour.
 
-                                                *lldb-:LLattach*
+                                                        *:LLattach*
 :LLattach <proc-name>   Attach to a process by name.
 
-                                                *lldb-:LLdetach*
+                                                        *:LLdetach*
 :LLdetach               Detach from the current process.
 
-                                                *lldb-:LLframe*
+                                                        *:LLframe*
 :LLframe {args}         Passed through to LLDB's command interpreter.
 
-                                                *lldb-:LLthread*
-:LLthread <args>        Passes through to LLDB's command interpreter.
+                                                        *:LLthread*
+:LLthread {args}        Passes through to LLDB's command interpreter.
 
-                                                *lldb-:LLprocess*
+                                                        *:LLprocess*
 :LLprocess {args}       Passed through to LLDB's command interpreter.
 
-                                                *lldb-:LLtarget*
+                                                        *:LLtarget*
 :LLtarget {args}        Passed through to LLDB's command interpreter.
 
-                                                *lldb-:LLbreakpoint*
+                                                        *:LLbreakpoint*
 :LLbreakpoint {args}    Alias to the lldb breakpoint command.
 
-                                                *lldb-:LLwatchpoint*
+                                                        *:LLwatchpoint*
 :LLwatchpoint {args}    Alias to the lldb watchpoint command.
 
-                                                *lldb-:LLstart*
+                                                        *:LLstart*
 :LLstart                Create a process by executing the current target
                         and wait for LLDB to attach.
 
-                                                *lldb-:LLrun*
+                                                        *:LLredraw*
+:LLredraw               Redraws the debugger layout, using the global layout
+                        variables. See |lldb-customizing|.
+
+                                                        *:LLrefresh*
+:LLrefresh              Updates all debugger signs and buffer contents.
+
+                                                        *:LLrun*
 :LLrun                  Create a process by executing the current target
                         without waiting for LLDB to attach.
 
-                                                *lldb-:LLcontinue*
+                                                        *:LLcontinue*
 :LLcontinue             Continue execution of the process until the next
                         breakpoint is hit or the process exits.
 
-                                                *lldb-:LLstep*
+                                                        *:LLstep*
 :LLstep                 Step into the current function call.
 
-                                                *lldb-:LLstepin*
+                                                        *:LLstepin*
 :LLstepin               Step into the current function call.
 
-                                                *lldb-:LLstepinst*
+                                                        *:LLstepinst*
 :LLstepinst             Step one instruction.
 
-                                                *lldb-:LLstepinstover*
+                                                        *:LLstepinstover*
 :LLstepinstover         Step one instruction, but skip over jump or call
                         instructions.
 
-                                                *lldb-:LLnext*
+                                                        *:LLnext*
 :LLnext                 Step to the next line.
 
-                                                *lldb-:LLfinish*
+                                                        *:LLfinish*
 :LLfinish               Step out of the current function.
 
-                                                *lldb-:LLprint*
-                                                *lldb-:LLpo*
-:LLprint <expr>         Aliases to the lldb print and po commands.
-:LLpo <expr>
+                                                        *:LLprint*
+                                                        *:LLpo*
+:LLprint {expr}         Aliases to the lldb print and po commands.
+:LLpo {expr}
 
-                                                *lldb-:LLup*
-                                                *lldb-:LLdown*
+                                                        *:LLup*
+                                                        *:LLdown*
 :LLup [num]             Aliases to the lldb up and down commands.
 :LLdown [num]
 
 This list is incomplete. Most of the lldb commands are available and are
 passed through to the command interpreter.
 
-MAPPINGS                                        *lldb-mappings*
+MAPPINGS                                                *lldb-mappings*
 
 The following are the default key mappings:
 
-                                                *<M-b>*
+                                                        *<M-b>*
 <M-b>                   Insert breakpoint at cursor location.
 
-                                                *<S-F5>*
-<S-F5>                  Resets the window layout.
+Additionally, I would recommend setting the following maps:
+>
+    nnoremap <F5> :LLrefresh<CR>
+    nnoremap <S-F5> :LLredraw<CR>
+    nnoremap <F8> :LLcontinue<CR>
+    nnoremap <F9> :LLprint <C-R>=expand('<cword>')<CR>
+    vnoremap <F9> :<C-U>LLprint <C-R>=lldb#util#get_selection()<CR>
+<
 
-                                                *<F8>*
-<F8>                    Executes |:LLcontinue|
-
-                                                *<F9>* *<S-F9>*
-                                                *v_<F9>* *v_<S-F9>*
-<F9>                    Invokes |:LLprint| <cword> in normal mode.
-<S-F9>                  Invokes |:LLprint| <cword> in normal mode.
-                        In visual mode, the selected text will be passed to
-                        the respective command.
-
-
-LICENSE                                         *lldb-license*
+LICENSE                                                 *lldb-license*
 
 Same as Vim itself. See |license|.
 
-ISSUES AND BUGS                                 *lldb-bugs*
+ISSUES AND BUGS                                         *lldb-bugs*
 
 When in doubt, please feel free to discuss at Gitter:
 https://gitter.im/critiqjo/lldb.nvim
@@ -218,13 +222,13 @@ https://gitter.im/critiqjo/lldb.nvim
 If you run into a bug, use the Github issue tracker to report it:
 https://github.com/critiqjo/lldb.nvim/issues
 
-It would be nice if you could set the following environment variable: >
-
+It would be nice if you could set the following environment variable:
+>
     export NVIM_PYTHON_LOG_FILE=/tmp/nvlog
-
+<
 and post the log along with the bug report.
 
-CONTRIBUTING                                    *lldb-contributing*
+CONTRIBUTING                                            *lldb-contributing*
 
 If you want to help out you are more then welcome to do so. In fact
 I am sure there are plenty of people out there that will do a better

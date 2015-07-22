@@ -1,22 +1,15 @@
-
-# LLDB UI state in the Vim user interface.
+# Manages Vim user interface.
 #
-# FIXME: implement WatchlistPane to displayed watched expressions
+# FIXME: display watched expressions
 # FIXME: define interface for interactive panes, like catching enter
 #        presses to change selected frame/thread...
 #
 
 import os, re
-from vim_signs import *
-from ui_helper import *
+from .vim_signs import *
+from .ui_helper import *
 
-def is_same_file(a, b):
-  """ returns true if paths a and b are the same file """
-  a = os.path.realpath(a)
-  b = os.path.realpath(b)
-  return a in b or b in a
-
-class UI:
+class VimUI:
   _content_map = {
       "backtrace": ( "command", ["bt", ""] ),
       "breakpoints": ( "command", ["breakpoint", "list"] ),
@@ -26,9 +19,9 @@ class UI:
       "registers": ( "cb_on_target", get_registers_content ),
   }
 
-  def __init__(self, vifx):
-    """ Declare UI state variables """
-    self.vifx = vifx
+  def __init__(self, vimx):
+    """ Declare VimUI state variables """
+    self.vimx = vimx
 
     self.buf_map = {}
 
@@ -39,12 +32,12 @@ class UI:
 
   def buf_map_check(self):
     if not self.buf_map:
-      self.buf_map = self.vifx.buf_init()
+      self.buf_map = self.vimx.buf_init()
 
   def update_pc(self, target, jump2pc):
     """ Place the PC sign on the PC location of each thread's selected frame.
-        If jump2pc is True, the cursor should (FIXME) move to the PC location
-        in the selected frame of the selected thread.
+        If jump2pc is True, the cursor should move to the PC location in the
+        selected frame of the selected thread.
     """
 
     # Clear all existing PC signs
@@ -66,18 +59,18 @@ class UI:
         continue
 
       (tid, fname, line, col) = loc
-      self.vifx.logger.info("Got pc loc: %s" % repr(loc))
+      self.vimx.logger.info("Got pc loc: %s" % repr(loc))
       is_selected = thread.GetIndexID() == process.GetSelectedThread().GetIndexID()
       if os.path.exists(fname):
-        bufnr = self.vifx.buffer_add(fname)
+        bufnr = self.vimx.buffer_add(fname)
       else:
         continue
 
-      sign = PCSign(self.vifx, bufnr, line, is_selected)
+      sign = PCSign(self.vimx, bufnr, line, is_selected)
       self.pc_signs[(bufnr, line)] = sign
 
       if is_selected and jump2pc:
-        self.vifx.sign_jump(bufnr, sign.id)
+        self.vimx.sign_jump(bufnr, sign.id)
 
   def update_breakpoints(self, target, hard_update=False):
     """ Decorates buffer with signs corresponding to breakpoints in target. """
@@ -92,10 +85,10 @@ class UI:
     needed_bps = {}
     for bp_index in range(target.GetNumBreakpoints()):
       bp = target.GetBreakpointAtIndex(bp_index)
-      bplocs = get_bploc_tuples(bp, self.vifx.log)
+      bplocs = get_bploc_tuples(bp, self.vimx.log)
       for (is_resolved, filepath, line) in bplocs:
         if filepath and os.path.exists(filepath):
-          bufnr = self.vifx.buffer_add(filepath)
+          bufnr = self.vimx.buffer_add(filepath)
           key = (bufnr, line)
           needed_bps[key] = is_resolved
           if self.bp_list.has_key(key):
@@ -117,15 +110,19 @@ class UI:
 
     # Show all (new) breakpoint signs
     for ((bufnr, line), resolved) in new_bps.items():
-      self.bp_signs[(bufnr, line)] = BreakpointSign(self.vifx, bufnr, line, resolved,
+      self.bp_signs[(bufnr, line)] = BreakpointSign(self.vimx, bufnr, line, resolved,
                                                     self.pc_signs.has_key((bufnr, line)))
 
   def update_buffer(self, buf, target, commander):
     self.buf_map_check()
 
-    content = UI._content_map[buf]
+    content = VimUI._content_map[buf]
     if content[0] == 'command':
-      results = get_command_content(content[1], target, commander)
+      proc_stat = get_process_stat(target)[1]
+      success, output = commander(*content[1])
+      if not success and proc_stat:
+        output = proc_stat
+      results = output.split('\n')
       if buf == 'breakpoints':
         self.update_breakpoints(target)
     elif content[0] == 'cb_on_target':
@@ -139,17 +136,14 @@ class UI:
         b.options['ma'] = False
         raise StopIteration
 
-    self.vifx.map_buffers(update_mapper)
+    self.vimx.map_buffers(update_mapper)
 
-  def update(self, target, commander, status='', jump2pc=False, exclude_buf=[]):
-    """ Updates signs, buffers, and prints status to the vim status line. """
+  def update(self, target, commander, jump2pc=False, exclude_buf=[]):
+    """ Updates signs, buffers, and possibly jumps to pc. """
     self.update_pc(target, jump2pc)
 
-    for buf in UI._content_map.keys():
+    for buf in VimUI._content_map.keys():
       if buf not in exclude_buf:
         self.update_buffer(buf, target, commander)
-
-    if len(status) > 0:
-      self.vifx.log(status, 0)
 
 # vim:et:ts=2:sw=2
