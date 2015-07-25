@@ -2,15 +2,19 @@ import os, sys
 import lldb
 from threading import Thread
 
-from .vim_ui import VimUI
+from .vim_buffers import VimBuffers
 
 class Controller(Thread):
   """ Handles LLDB events and commands. """
 
   CTRL_VOICE = 238 # just a number of my choice
   def __init__(self, vimx):
-    """ Creates the LLDB SBDebugger object and initializes the VimUI class. """
+    """ Creates the LLDB SBDebugger object and initializes the VimBuffers class. """
     from Queue import Queue
+    import logging
+    self.logger = logging.getLogger(__name__)
+    self.logger.setLevel(logging.INFO)
+
     self.target = None
     self.process = None
     self.in_queue = Queue()
@@ -24,12 +28,12 @@ class Controller(Thread):
     self.interrupter.AddListener(self.listener, self.CTRL_VOICE)
 
     self.vimx = vimx # represents the parent Middleman object
-    self.ui = VimUI(vimx)
+    self.buffers = VimBuffers(vimx)
     super(Controller, self).__init__()
 
   def safe_call(self, method, args=[], sync=False): # safe_ marks thread safety
     if self.dbg is None:
-      self.vimx.logger.critical("Debugger was terminated!" +
+      self.logger.critical("Debugger was terminated!" +
           (" Attempted calling %s" % method.func_name if method else ""))
       return
     self.in_queue.put((method, args, sync))
@@ -59,7 +63,7 @@ class Controller(Thread):
     else:
       return []
 
-  def update_ui(self, jump2pc=True, buf=None):
+  def update_buffers(self, jump2pc=True, buf=None):
     """ Update lldb buffers and signs placed in source files.
         @param jump2pc
             Whether or not to move the cursor to the program counter (PC).
@@ -71,11 +75,11 @@ class Controller(Thread):
     excl = ['breakpoints']
     commander = self.get_command_result
     if buf is None:
-      self.ui.update(self.target, commander, jump2pc, excl)
+      self.buffers.update(self.target, commander, jump2pc, excl)
     elif buf == '!all':
-      self.ui.update(self.target, commander, jump2pc)
+      self.buffers.update(self.target, commander, jump2pc)
     else:
-      self.ui.update_buffer(buf, self.target, commander)
+      self.buffers.update_buffer(buf, self.target, commander)
 
   def do_stop(self):
     """ End the debug session. """
@@ -85,13 +89,13 @@ class Controller(Thread):
     """ Handle 'frame' command. """
     self.exec_command("frame", args)
     if args.startswith('s'): # select
-      self.update_ui()
+      self.update_buffers()
 
   def do_thread(self, args):
     """ Handle 'thread' command. """
     self.exec_command("thread", args)
     if args.startswith('se'): # select
-      self.update_ui()
+      self.update_buffers()
 
   def do_process(self, args):
     """ Handle 'process' command. """
@@ -135,20 +139,20 @@ class Controller(Thread):
     elif args.startswith('c'): # create
       self.target = self.dbg.GetSelectedTarget()
       self.vimx.log(str(result), 0)
-      if len(self.ui.bp_signs) > 0: # FIXME remove in favor of configuration file
-        bp_bufs = dict(self.ui.bp_signs.keys()).keys()
+      if len(self.buffers.bp_signs) > 0: # FIXME remove in favor of configuration file
+        bp_bufs = dict(self.buffers.bp_signs.keys()).keys()
         def bpfile_mapper(b):
           if b.number in bp_bufs:
             return (b.number, b.name)
         bp_filemap = dict(self.vimx.map_buffers(bpfile_mapper)[:-1])
-        for bufnr, line in self.ui.bp_signs.keys():
+        for bufnr, line in self.buffers.bp_signs.keys():
           self.exec_command("breakpoint", "set -f %s -l %d" % (bp_filemap[bufnr], line))
-      self.update_ui(buf='breakpoints')
+      self.update_buffers(buf='breakpoints')
     elif args.startswith('d'): # delete
       self.target = None
       self.process = None
       self.vimx.log(str(result), 0)
-      self.update_ui(buf='!all')
+      self.update_buffers(buf='!all')
 
   def do_attach(self, process_name):
     """ Handle process attach. """
@@ -172,17 +176,17 @@ class Controller(Thread):
     """ Handle 'command' command. """
     self.ctrl.exec_command("command", args)
     if args.startswith('so'): # source
-      self.update_ui(buf='breakpoints')
+      self.update_buffers(buf='breakpoints')
 
   def do_disassemble(self, args):
-    self.ui._content_map['disassembly'][1][1] = args
-    self.update_ui(buf='disassembly')
+    self.buffers._content_map['disassembly'][1][1] = args
+    self.update_buffers(buf='disassembly')
 
   def do_breakswitch(self, bufnr, line):
     """ Switch breakpoint at the specified line in the buffer. """
     key = (bufnr, line)
-    if self.ui.bp_list.has_key(key):
-      bps = self.ui.bp_list[key]
+    if self.buffers.bp_list.has_key(key):
+      bps = self.buffers.bp_list[key]
       args = "delete %s" % " ".join([str(b.GetID()) for b in bps])
     else:
       path = self.vimx.get_buffer_name(bufnr)
@@ -192,7 +196,7 @@ class Controller(Thread):
   def do_breakpoint(self, args):
     """ Handle breakpoint command with command interpreter. """
     self.exec_command("breakpoint", args)
-    self.update_ui(buf="breakpoints")
+    self.update_buffers(buf="breakpoints")
 
   def get_command_result(self, command, args=""):
     """ Run command in the command interpreter and returns (success, output) """
@@ -222,23 +226,23 @@ class Controller(Thread):
             method, args, sync = self.in_queue.get(False)
             if method is None:
               break
-            self.vimx.logger.info('Calling %s with %s' % (method.func_name, repr(args)))
+            self.logger.info('Calling %s with %s' % (method.func_name, repr(args)))
             ret = method(*args)
             if sync:
               self.out_queue.put(ret)
           except Empty:
-            self.vimx.logger.info('Empty interrupt!')
+            self.logger.info('Empty interrupt!')
           except Exception:
-            self.vimx.logger.critical(traceback.format_exc())
+            self.logger.critical(traceback.format_exc())
         else:
           while self.listener.PeekAtNextEvent(event) and event.GetType() != self.CTRL_VOICE:
             self.listener.GetNextEvent(event) # try to prevent flickering
-          self.update_ui(buf='!all')
+          self.update_buffers(buf='!all')
       else: # Timed out
         to_count += 1
         if to_count > 172800: # 60 days worth idleness! barrier to prevent infinite loop
-          self.vimx.logger.critical('Broke the loop barrier!')
+          self.logger.critical('Broke the loop barrier!')
           break
     self.dbg.Terminate()
     self.dbg = None
-    self.vimx.logger.info('Terminated!')
+    self.logger.info('Terminated!')

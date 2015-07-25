@@ -1,10 +1,10 @@
 import neovim
 import check_lldb
-from Queue import Queue
 
 lldb_success = check_lldb.probe()
 
 from .controller import Controller
+from .vim_x import VimX
 
 @neovim.plugin
 class Middleman(object):
@@ -12,90 +12,12 @@ class Middleman(object):
     import logging
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
-
-    self._vim = vim
     if not lldb_success:
       self.logger.critical('LLDB could not be imported!')
       # ImportError will be raised in Controller init below.
-    self.ctrl = Controller(self)
+    self.ctrl = Controller(VimX(vim))
     self.ctrl.start()
-    vim.command('call lldb#remote#init(' + str(vim.channel_id) + ')')
-
-  def safe_vim_eval(self, expr):
-    vim = self._vim
-    out_q = Queue()
-    vim.session.threadsafe_call(lambda: out_q.put(vim.eval(expr)))
-    return out_q.get()
-
-  def safe_vim_command(self, cmd):
-    vim = self._vim
-    vim.session.threadsafe_call(lambda: vim.command(cmd))
-
-  def log(self, msg, level=1):
-    """ Execute echom in vim using appropriate highlighting. """
-    level_map = ['None', 'WarningMsg', 'ErrorMsg']
-    msg = msg.strip().replace('"', '\\"').replace('\n', '\\n')
-    self.safe_vim_command('echohl %s | echom "%s" | echohl None' % (level_map[level], msg))
-
-  def buffer_add(self, name):
-    """ Create a buffer (if it doesn't exist) and return its number. """
-    bufnr = self.safe_vim_eval('bufnr("%s", 1)' % name)
-    self.safe_vim_command('call setbufvar(%d, "&bl", 1)' % bufnr)
-    return bufnr
-
-  def sign_jump(self, bufnr, sign_id):
-    """ Try jumping to the specified sign_id in buffer with number bufnr. """
-    self.safe_vim_command("call lldb#util#signjump(%d, %d)" % (bufnr, sign_id))
-
-  def sign_place(self, sign_id, name, bufnr, line):
-    """ Place a sign at the specified location. """
-    cmd = "sign place %d name=%s line=%d buffer=%s" % (sign_id, name, line, bufnr)
-    self.safe_vim_command(cmd)
-
-  def sign_unplace(self, sign_id):
-    """ Hide a sign with specified id. """
-    self.safe_vim_command("sign unplace %d" % sign_id)
-
-  def map_buffers(self, fn):
-    """ Does a map using fn callback on all buffer object and returns a list.
-        @param fn: callback function which takes buffer object as a parameter.
-                   If None is returned, the item is ignored.
-                   If a StopIteration is raised, the loop breaks.
-        @return: The last item in the list returned is a placeholder indicating:
-                 * completed iteration, if None is present
-                 * otherwise, if StopIteration was raised, the message would be the last item
-    """
-    vim = self._vim
-    out_q = Queue(maxsize=1)
-    def map_buffers_inner():
-      mapped = []
-      breaked = False
-      for b in vim.buffers:
-        try:
-          ret = fn(b)
-          if ret is not None:
-            mapped.append(ret)
-        except StopIteration as e:
-          mapped.append(e.message)
-          breaked = True
-          break
-      if not breaked:
-        mapped.append(None)
-      out_q.put(mapped)
-    vim.session.threadsafe_call(map_buffers_inner)
-    return out_q.get()
-
-  def get_buffer_name(self, nr):
-    """ Get the buffer name given its number. """
-    def name_mapper(b):
-      if b.number == nr:
-        raise StopIteration(b.name)
-    return self.map_buffers(name_mapper)[0]
-
-  def buf_init(self):
-    """ Create all lldb buffers and initialize the buffer map. """
-    buf_map = self.safe_vim_eval('lldb#layout#init_buffers()')
-    return buf_map
+    vim.command('call lldb#remote#init(%d)' % vim.channel_id)
 
   @neovim.rpc_export('exit')
   def _exit(self):
@@ -104,7 +26,7 @@ class Middleman(object):
   @neovim.function('LLBreakswitch')
   def _breakswitch(self, args):
     if len(args) != 2:
-      self.log('LLBreakswitch takes exactly 2 arguments (%d given)' % len(args))
+      self.ctrl.vimx.log('LLBreakswitch takes exactly 2 arguments (%d given)' % len(args))
     else:
       self.ctrl.safe_call(self.ctrl.do_breakswitch, [args[0], args[1]])
 
@@ -115,7 +37,6 @@ class Middleman(object):
     pos = int(args[2])
 
     assert line[:2] == 'LL'
-    # Remove first 'LL' characters that all commands start with
     line = line[2:]
     pos -= 2
 
@@ -138,7 +59,7 @@ class Middleman(object):
   @neovim.command('LLstop')
   def _stop(self):
     self.ctrl.safe_call(self.ctrl.do_stop)
-    self.safe_vim_command('call lldb#layout#teardown(1)')
+    self.ctrl.vimx.command('call lldb#layout#teardown(1)')
 
   @neovim.command('LLstart', nargs='*')
   def _start(self, args):
@@ -147,6 +68,7 @@ class Middleman(object):
 
   @neovim.command('LLattach', nargs='1')
   def _attach(self, args):
+    # FIXME remove in favor of gdb-remote
     self.ctrl.safe_call(self.ctrl.do_attach, [' '.join(args)])
 
   @neovim.command('LLdetach')
@@ -163,7 +85,7 @@ class Middleman(object):
 
   @neovim.command('LLbt')
   def _bt(self):
-    self.safe_vim_command('drop backtrace')
+    self.ctrl.vimx.command('drop backtrace')
 
   @neovim.command('LLcommand', nargs='*', complete='custom,LLComplete')
   def _command(self, args):
@@ -176,7 +98,7 @@ class Middleman(object):
   @neovim.command('LLdisassemble', nargs='*', complete='custom,LLComplete')
   def _disassemble(self, args):
     self.ctrl.safe_call(self.ctrl.do_disassemble, [' '.join(args)])
-    self.safe_vim_command('drop disassembly')
+    self.ctrl.vimx.command('drop disassembly')
 
   @neovim.command('LLexpression', nargs='*', complete='custom,LLComplete')
   def _expression(self, args):
@@ -216,6 +138,7 @@ class Middleman(object):
 
   @neovim.command('LLregexpattach', nargs='*', complete='custom,LLComplete')
   def _regexpattach(self, args):
+    # FIXME remove in favor of gdb-remote
     self.ctrl.safe_call(self.ctrl.do_attach, [' '.join(args)])
 
   @neovim.command('LLregexpbreak', nargs='*', complete='custom,LLComplete')
@@ -224,7 +147,7 @@ class Middleman(object):
 
   @neovim.command('LLregexpbt')
   def _regexpbt(self):
-    self.safe_vim_command('drop backtrace')
+    self.ctrl.vimx.command('drop backtrace')
 
   @neovim.command('LLregexptbreak', nargs='*', complete='custom,LLComplete')
   def _regexptbreak(self, args):

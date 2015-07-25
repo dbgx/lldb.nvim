@@ -7,9 +7,9 @@
 
 import os, re
 from .vim_signs import *
-from .ui_helper import *
+from .content_helper import *
 
-class VimUI:
+class VimBuffers:
   _content_map = {
       "backtrace": ( "command", ["bt", ""] ),
       "breakpoints": ( "command", ["breakpoint", "list"] ),
@@ -20,8 +20,11 @@ class VimUI:
   }
 
   def __init__(self, vimx):
-    """ Declare VimUI state variables """
+    """ Declare VimBuffers state variables """
+    import logging
     self.vimx = vimx
+    self.logger = logging.getLogger(__name__)
+    self.logger.setLevel(logging.INFO)
 
     self.buf_map = {}
 
@@ -59,7 +62,7 @@ class VimUI:
         continue
 
       (tid, fname, line, col) = loc
-      self.vimx.logger.info("Got pc loc: %s" % repr(loc))
+      self.logger.info("Got pc loc: %s" % repr(loc))
       is_selected = thread.GetIndexID() == process.GetSelectedThread().GetIndexID()
       if os.path.exists(fname):
         bufnr = self.vimx.buffer_add(fname)
@@ -116,7 +119,7 @@ class VimUI:
   def update_buffer(self, buf, target, commander):
     self.buf_map_check()
 
-    content = VimUI._content_map[buf]
+    content = VimBuffers._content_map[buf]
     if content[0] == 'command':
       proc_stat = get_process_stat(target)[1]
       success, output = commander(*content[1])
@@ -142,7 +145,7 @@ class VimUI:
     """ Updates signs, buffers, and possibly jumps to pc. """
     self.update_pc(target, jump2pc)
 
-    for buf in VimUI._content_map.keys():
+    for buf in VimBuffers._content_map.keys():
       if buf not in exclude_buf:
         self.update_buffer(buf, target, commander)
 
