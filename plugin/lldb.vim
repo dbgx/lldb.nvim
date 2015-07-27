@@ -19,8 +19,6 @@ endif
 
 command! LLredraw call lldb#layout#teardown() | call lldb#layout#update()
 
-nnoremap <silent> <Plug>LLBreakSwitch :call LLBreakswitch(bufnr('%'), getcurpos()[1])<CR>
-
 highlight LLSelectedPCLine ctermbg=darkblue guibg=darkblue
 highlight LLUnselectedPCLine ctermbg=black guibg=black
 sign define llsign_bpres text=B>

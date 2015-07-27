@@ -35,7 +35,7 @@ class VimBuffers:
 
   def buf_map_check(self):
     if not self.buf_map:
-      self.buf_map = self.vimx.buf_init()
+      self.buf_map = self.vimx.init_buffers()
 
   def update_pc(self, target, jump2pc):
     """ Place the PC sign on the PC location of each thread's selected frame.

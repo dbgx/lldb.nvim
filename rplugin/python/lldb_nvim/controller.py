@@ -3,6 +3,7 @@ import lldb
 from threading import Thread
 
 from .vim_buffers import VimBuffers
+from .session import Session
 
 class Controller(Thread):
   """ Handles LLDB events and commands. """
@@ -29,6 +30,7 @@ class Controller(Thread):
 
     self.vimx = vimx # represents the parent Middleman object
     self.buffers = VimBuffers(vimx)
+    self.session = Session(vimx)
     super(Controller, self).__init__()
 
   def safe_call(self, method, args=[], sync=False): # safe_ marks thread safety
@@ -58,8 +60,11 @@ class Controller(Thread):
       pass
 
     if result.GetSize() > 0:
-      results = filter(None, (result.GetStringAtIndex(x) for x in range(result.GetSize())))
-      return results
+      cands = [result.GetStringAtIndex(x) for x in range(result.GetSize())]
+      if cands[0] == '' and arg != '':
+        if not cands[1].startswith(arg) or not cands[-1].startswith(arg):
+          return []
+      return cands[1:]
     else:
       return []
 
@@ -84,6 +89,8 @@ class Controller(Thread):
   def do_stop(self):
     """ End the debug session. """
     self.do_target("delete")
+    self.vimx.command('call lldb#layout#teardown(1)')
+    self.vimx.command('call lldb#remote#undefine_commands()')
 
   def do_frame(self, args):
     """ Handle 'frame' command. """

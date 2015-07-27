@@ -75,7 +75,7 @@ class VimX:
         raise StopIteration(b.name)
     return self.map_buffers(name_mapper)[0]
 
-  def buf_init(self):
+  def init_buffers(self):
     """ Create all lldb buffers and initialize the buffer map. """
     buf_map = self.eval('lldb#layout#init_buffers()')
     return buf_map
