@@ -1,3 +1,22 @@
+function! s:complete_file(path)
+  let flist = glob(a:path, 0, 1)
+  if len(flist) == 0
+    let flist = glob(a:path . '*', 0, 1)
+  elseif len(flist) == 1
+    if flist[0] == a:path
+      let flist = glob(a:path . '*', 0, 1)
+      if len(flist) == 1
+        let flist = glob(a:path . '/', 0, 1)
+      endif
+    endif
+  endif
+  let eflist = []
+  for i in flist
+    call add(eflist, escape(i, ' '))
+  endfor
+  return eflist
+endfun
+
 function! s:complete_prefix(list, lead)
   if a:lead == ''
     return a:list
@@ -21,5 +40,11 @@ function! lldb#session#complete(ArgLead, CmdLine, CursorPos)
   if toknum == 2
     let subcmds = ['new', 'load', 'save', 'show']
     return s:complete_prefix(subcmds, a:ArgLead)
+  endif
+  let subcmd = tokens[1]
+  if toknum == 3
+    if subcmd == 'load' || subcmd == 'save'
+      return s:complete_file(a:ArgLead)
+    endif
   endif
 endfun
