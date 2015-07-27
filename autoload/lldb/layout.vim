@@ -20,31 +20,29 @@ function! lldb#layout#teardown(...)
   if !exists('s:buffer_map') || empty(s:buffer_map)
     return
   endif
-  let tabcount = 0
-  for i in range(len(g:lldb#layout#cmds))
-    if g:lldb#layout#cmds[i] == 'T'
-      let tabcount += 1
+  let tabcount = tabpagenr('$')
+  let bufnrs = values(s:buffer_map)
+  for i in range(tabcount)
+    let tabnr = tabcount - i
+    let blist = tabpagebuflist(tabnr)
+    let bcount = 0
+    exe 'tabn ' . tabnr
+    for bnr in blist
+      if index(bufnrs, bnr) >= 0
+        let bcount += 1
+        exe bufwinnr(bnr) . 'close'
+      endif
+    endfor
+    if len(tabpagebuflist(tabnr)) < bcount
+      " close tab if majority of windows were lldb buffers
+      tabc
     endif
   endfor
-  if tabcount < tabpagenr('$')
-    for i in range(tabcount)
-      let tabnr = tabcount - i
-      for bufnr in tabpagebuflist(tabnr)
-        if index(g:lldb#layout#windows, bufname(bufnr)) >= 0
-          exe 'tabclose ' . tabnr
-          break
-        endif
-      endfor
-    endfor
-  else
-    echom 'Please close unwanted tab(s) manually...'
-  endif
   if a:0 == 0 || (a:0 > 0 && !a:1)
     return
   endif
-  for bname in g:lldb#_buffers
-    let bnr = s:buffer_map[bname]
-    exe 'silent bd ' . s:buffer_map[bname]
+  for bnr in bufnrs
+    exe 'silent bd ' . bnr
     call setbufvar(bnr, '&bt', 'nofile')
   endfor
   let s:buffer_map = {}
