@@ -48,3 +48,25 @@ function! lldb#session#complete(ArgLead, CmdLine, CursorPos)
     endif
   endif
 endfun
+
+function! s:find_xfiles()
+  let files = split(system('find bin build/bin target/debug . -not -name "*.sh"'.
+        \ ' -maxdepth 1 -perm -111 -type f -print 2>/dev/null'))
+  if len(files) > 0
+    return files[0]
+  else
+    return ''
+  endif
+endfun
+
+function! lldb#session#new(has_state)
+  if a:has_state && input('Throw away the current session? (y/n) ', 'n') != 'y'
+    return
+  endif
+  let session_file = input('Write session file to: ', g:lldb#session#file, 'file')
+  let target = input('Path to target executable: ', s:find_xfiles(), 'file')
+  return { "_file": session_file,
+         \ "_bak_pat": g:lldb#session#backup_file_pat,
+         \ "target": target
+         \ }
+endfun

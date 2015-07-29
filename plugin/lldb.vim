@@ -17,6 +17,13 @@ if !exists('g:lldb#layout#cmds')
   let g:lldb#layout#cmds = '.TRBBRkRkR'
 endif
 
+if !exists('g:lldb#session#file')
+  let g:lldb#session#file = 'lldb-nvim.json'
+endif
+if !exists('g:lldb#session#backup_file_pat')
+  let g:lldb#session#backup_file_pat = '.{0}.bak'
+endif
+
 command! LLredraw call lldb#layout#teardown() | call lldb#layout#update()
 
 highlight LLSelectedPCLine ctermbg=darkblue guibg=darkblue
