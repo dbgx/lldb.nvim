@@ -58,15 +58,15 @@ class Middleman(object):
 
   @neovim.rpc_export('command')
   def _command(self, *args):
-    self.ctrl.safe_call(self.ctrl.do_command, [' '.join(args)])
+    self.ctrl.safe_execute("command", args)
 
   @neovim.rpc_export('continue')
   def _continue(self, *args):
     self.ctrl.safe_execute("continue", args)
 
   @neovim.rpc_export('detach')
-  def _detach(self):
-    self.ctrl.safe_call(self.ctrl.do_detach)
+  def _detach(self, *args):
+    self.ctrl.safe_execute("detach", args)
 
   @neovim.rpc_export('disassemble')
   def _disassemble(self, *args):
@@ -127,17 +127,9 @@ class Middleman(object):
   def _register(self, *args):
     self.ctrl.safe_execute("register", args)
 
-  @neovim.rpc_export('script')
-  def _script(self, *args):
-    self.ctrl.safe_execute("script", args)
-
   @neovim.rpc_export('settings')
   def _settings(self, *args):
     self.ctrl.safe_execute("settings",args)
-
-  @neovim.rpc_export('stop')
-  def _stop(self):
-    self.ctrl.safe_call(self.ctrl.do_stop)
 
   @neovim.rpc_export('source')
   def _source(self, *args):

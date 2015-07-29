@@ -16,8 +16,8 @@ class Controller(Thread):
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
 
-    self.target = None
-    self.process = None
+    self._target = None
+    self._process = None
     self.in_queue = Queue()
     self.out_queue = Queue()
 
@@ -79,18 +79,37 @@ class Controller(Thread):
     """
     excl = ['breakpoints']
     commander = self.get_command_result
+    target = self.get_target()
     if buf is None:
-      self.buffers.update(self.target, commander, jump2pc, excl)
+      self.buffers.update(target, commander, jump2pc, excl)
     elif buf == '!all':
-      self.buffers.update(self.target, commander, jump2pc)
+      self.buffers.update(target, commander, jump2pc)
     else:
-      self.buffers.update_buffer(buf, self.target, commander)
+      self.buffers.update_buffer(buf, target, commander)
 
-  def do_stop(self):
-    """ End the debug session. """
-    self.do_target("delete")
-    self.vimx.command('call lldb#layout#teardown(1)')
-    self.vimx.command('call lldb#remote#undefine_commands()')
+  def get_target(self):
+    if self._target and self._target.IsValid():
+      return self._target
+    target = self.dbg.GetSelectedTarget()
+    if target and target.IsValid():
+      self._target = target
+      target.broadcaster.AddListener(self.listener,
+          lldb.SBTarget.eBroadcastBitBreakpointChanged)
+          # TODO WatchpointChanged
+      return target
+    return None
+
+  def get_process(self):
+    if self._process and self._process.IsValid():
+      return self._process
+    target = self.get_target()
+    if target and target.process and target.process.IsValid():
+      self._process = target.process
+      self._process.broadcaster.AddListener(self.listener,
+          lldb.SBProcess.eBroadcastBitStateChanged)
+          # TODO STDOUT, STDERR
+      return self._process
+    return None
 
   def do_frame(self, args):
     """ Handle 'frame' command. """
@@ -106,35 +125,17 @@ class Controller(Thread):
 
   def do_process(self, args):
     """ Handle 'process' command. """
-    # FIXME use do_attach/do_detach to handle attach/detach subcommands.
+    process = self.get_process()
     if args.startswith("la"): # launch
-      if self.process is not None and self.process.IsValid():
-        self.process.Destroy()
+      if process:
+        process.Destroy()
 
       (success, result) = self.get_command_result("process", args)
       if not success:
         self.vimx.log("Error during launch: " + str(result))
         return
-      self.process = self.target.process
-
-      # launch succeeded, store pid and add some event listeners
-      self.process.GetBroadcaster().AddListener(self.listener, lldb.SBProcess.eBroadcastBitStateChanged)
-
+      self.get_process() # add listener
       self.vimx.log("%s" % result, 0)
-    elif args.startswith("i"): # interrupt
-      if not self.process or not self.process.IsValid():
-        self.vimx.log("No valid process to interrupt.")
-        return
-      self.process.SendAsyncInterrupt()
-    elif args.startswith("k"): # kill
-      if not self.process or not self.process.IsValid():
-        self.vimx.log("No valid process to kill.")
-        return
-      pid = self.process.GetProcessID()
-      if not self.process.Destroy().Success():
-        self.vimx.log("Error during kill: " + str(error))
-      else:
-        self.vimx.log("Killed process (pid=%d)" % pid)
     else:
       self.exec_command("process", args)
 
@@ -143,47 +144,10 @@ class Controller(Thread):
     (success, result) = self.get_command_result("target", args)
     if not success:
       self.vimx.log(str(result))
-    elif args.startswith('c'): # create
-      self.target = self.dbg.GetSelectedTarget()
-      self.vimx.log(str(result), 0)
-      if len(self.buffers.bp_signs) > 0: # FIXME remove in favor of configuration file
-        bp_bufs = dict(self.buffers.bp_signs.keys()).keys()
-        def bpfile_mapper(b):
-          if b.number in bp_bufs:
-            return (b.number, b.name)
-        bp_filemap = dict(self.vimx.map_buffers(bpfile_mapper)[:-1])
-        for bufnr, line in self.buffers.bp_signs.keys():
-          self.exec_command("breakpoint", "set -f %s -l %d" % (bp_filemap[bufnr], line))
-      self.update_buffers(buf='breakpoints')
     elif args.startswith('d'): # delete
-      self.target = None
-      self.process = None
-      self.vimx.log(str(result), 0)
       self.update_buffers(buf='!all')
-
-  def do_attach(self, process_name):
-    """ Handle process attach. """
-    (success, result) = self.get_command_result("attach", args)
-    self.target = self.dbg.GetSelectedTarget()
-    if not success:
-      self.vimx.log("Error during attach: " + str(result))
-      return
-
-    # attach succeeded, initialize variables, listeners
-    self.process = self.target.process
-    self.process.GetBroadcaster().AddListener(self.listener, lldb.SBProcess.eBroadcastBitStateChanged)
     self.vimx.log(str(result), 0)
-
-  def do_detach(self):
-    """ Handle process detach. """
-    if self.process is not None and self.process.IsValid():
-      self.process.Detach()
-
-  def do_command(self, args):
-    """ Handle 'command' command. """
-    self.ctrl.exec_command("command", args)
-    if args.startswith('so'): # source
-      self.update_buffers(buf='breakpoints')
+    self.get_target()
 
   def do_disassemble(self, args):
     self.buffers._content_map['disassembly'][1][1] = args
@@ -203,7 +167,6 @@ class Controller(Thread):
   def do_breakpoint(self, args):
     """ Handle breakpoint command with command interpreter. """
     self.exec_command("breakpoint", args)
-    self.update_buffers(buf="breakpoints")
 
   def get_command_result(self, command, args=""):
     """ Run command in the command interpreter and returns (success, output) """
@@ -228,7 +191,16 @@ class Controller(Thread):
     while True:
       event = lldb.SBEvent()
       if self.listener.WaitForEvent(30, event): # 30 second timeout
-        if event.GetType() == self.CTRL_VOICE:
+
+        def event_matches(broadcaster, skip=True):
+          if event.BroadcasterMatchesRef(broadcaster):
+            if skip:
+              while self.listener.GetNextEventForBroadcaster(broadcaster, event):
+                pass
+            return True
+          return False
+
+        if event_matches(self.interrupter, skip=False):
           try:
             method, args, sync = self.in_queue.get(False)
             if method is None:
@@ -241,9 +213,9 @@ class Controller(Thread):
             self.logger.info('Empty interrupt!')
           except Exception:
             self.logger.critical(traceback.format_exc())
-        else:
-          while self.listener.PeekAtNextEvent(event) and event.GetType() != self.CTRL_VOICE:
-            self.listener.GetNextEvent(event) # try to prevent flickering
+        elif event_matches(self._target.broadcaster):
+          self.update_buffers(buf='breakpoints')
+        elif event_matches(self._process.broadcaster):
           self.update_buffers(buf='!all')
       else: # Timed out
         to_count += 1
