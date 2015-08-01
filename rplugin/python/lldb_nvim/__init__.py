@@ -116,7 +116,7 @@ class Middleman(object):
 
   @neovim.rpc_export('refresh')
   def _refresh(self):
-    self.ctrl.safe_call(self.ctrl.update_ui, [False, '!all'])
+    self.ctrl.safe_call(self.ctrl.update_buffers, [False, '!all'])
 
   @neovim.rpc_export('regexpbreak')
   def _regexpbreak(self, *args):

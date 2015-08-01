@@ -2,6 +2,9 @@ from Queue import Queue
 
 class VimX:
   def __init__(self, vim):
+    import logging
+    self.logger = logging.getLogger(__name__)
+    self.logger.setLevel(logging.INFO)
     self._vim = vim
 
   def eval(self, expr):
@@ -28,7 +31,7 @@ class VimX:
 
   def sign_jump(self, bufnr, sign_id):
     """ Try jumping to the specified sign_id in buffer with number bufnr. """
-    self.command("call lldb#util#signjump(%d, %d)" % (bufnr, sign_id))
+    self.command("call lldb#layout#signjump(%d, %d)" % (bufnr, sign_id))
 
   def sign_place(self, sign_id, name, bufnr, line):
     """ Place a sign at the specified location. """

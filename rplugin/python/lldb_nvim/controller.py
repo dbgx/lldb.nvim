@@ -1,4 +1,3 @@
-import os, sys
 import lldb
 from threading import Thread
 
@@ -8,7 +7,7 @@ from .session import Session
 class Controller(Thread):
   """ Handles LLDB events and commands. """
 
-  CTRL_VOICE = 238 # just a number of my choice
+  CTRL_VOICE = 238 # doesn't matter what this is
   def __init__(self, vimx):
     """ Creates the LLDB SBDebugger object and initializes the VimBuffers class. """
     from Queue import Queue
@@ -96,6 +95,7 @@ class Controller(Thread):
       target.broadcaster.AddListener(self.listener,
           lldb.SBTarget.eBroadcastBitBreakpointChanged)
           # TODO WatchpointChanged
+      self.update_buffers(buf='!all')
       return target
     return None
 
@@ -108,6 +108,7 @@ class Controller(Thread):
       self._process.broadcaster.AddListener(self.listener,
           lldb.SBProcess.eBroadcastBitStateChanged)
           # TODO STDOUT, STDERR
+      self.update_buffers()
       return self._process
     return None
 
@@ -144,8 +145,6 @@ class Controller(Thread):
     (success, result) = self.get_command_result("target", args)
     if not success:
       self.vimx.log(str(result))
-    elif args.startswith('d'): # delete
-      self.update_buffers(buf='!all')
     self.vimx.log(str(result), 0)
     self.get_target()
 

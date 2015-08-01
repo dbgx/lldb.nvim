@@ -16,7 +16,7 @@ class Session:
       if len(args) == 0:
         path = self.vimx.eval('findfile(g:lldb#session#file, ".;")')
       elif len(args) == 1:
-        path = args[1]
+        path = args[0]
       else:
         self.vimx.log("Too many arguments!")
         return

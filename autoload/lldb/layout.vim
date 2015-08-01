@@ -61,3 +61,22 @@ function! lldb#layout#teardown(...)
     endif
   endfor
 endfun
+
+function! lldb#layout#signjump(bufnr, signid)
+  if bufwinnr(a:bufnr) < 0
+    let wnr = -1
+    let ll_bufnrs = values(s:buffer_map)
+    for i in range(winnr('$'))
+      if index(ll_bufnrs, winbufnr(i+1)) < 0
+        let wnr = i+1
+        break
+      endif
+    endfor
+    if wnr < 0
+      return
+    endif
+    exe wnr . "wincmd w"
+    exe a:bufnr . 'b'
+  endif
+  exe 'sign jump ' . a:signid . ' buffer=' . a:bufnr
+endfun

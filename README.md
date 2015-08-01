@@ -58,7 +58,7 @@ started section in the vim-docs (`:h lldb-start`).
 
 ## FAQ
 
-### After recent the recent update, [command] stopped working!
+### After the recent update, [command] stopped working!
 
 Have you tried `:UpdateRemotePlugins` and restarting Neovim? If you did, and
 the problem persists, please file a bug report (also see `:help lldb-bugs`).
