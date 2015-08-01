@@ -93,25 +93,7 @@ Alternatively, you can kill it using:
 <
 CUSTOMIZING                                             *lldb-customizing*
 
-There are a 2 global variables you can edit to change the layout. You can edit
-these variables and do |:LLredraw| to update the layout. Default values are
-specified below:
-
-*g:lldb#layout#windows* = [ 'backtrace', 'breakpoints', 'disassembly',
-                        \ 'locals', 'registers', 'threads' ]
-                        This is the order in which windows showing the
-                        corresponding buffers will be created.
-
-*g:lldb#layout#cmds* = '.TRBBRkRkR'
-                        This specifies how the windows will be created.
-                        T = tab sp
-                        R = rightbelow vsp
-                        B = belowright sp
-                        A = aboveleft sp
-                        L = leftabove vsp
-                        . = Next command should show the code buffer.
-                        The buffer which is focused on when invoking LLredraw
-                        will be taken as the code buffer.
+Later...
 
 COMMANDS                                                *lldb-commands*
 

@@ -3,19 +3,10 @@
 "  Maintainer:  John C F <john.ch.fr@gmail.com>
 "  --------------------------------------------------------------------
 
-if (exists('g:loaded_lldb') && g:loaded_lldb) || !has('nvim') || !has('python')
+if exists('g:loaded_lldb') || !has('nvim') || !has('python')
   finish
 endif
 let g:loaded_lldb = 1
-
-let g:lldb#_buffers = [ 'backtrace', 'breakpoints', 'disassembly', 'locals', 'registers', 'threads' ]
-
-if !exists('g:lldb#layout#windows')
-  let g:lldb#layout#windows = g:lldb#_buffers
-endif
-if !exists('g:lldb#layout#cmds')
-  let g:lldb#layout#cmds = '.TRBBRkRkR'
-endif
 
 if !exists('g:lldb#session#file')
   let g:lldb#session#file = 'lldb-nvim.json'
@@ -24,7 +15,7 @@ if !exists('g:lldb#session#backup_file_pat')
   let g:lldb#session#backup_file_pat = '.{0}.bak'
 endif
 
-command! LLredraw call lldb#layout#teardown() | call lldb#layout#update()
+command! LLredraw call lldb#layout#teardown() | call lldb#layout#setup()
 
 highlight LLSelectedPCLine ctermbg=darkblue guibg=darkblue
 highlight LLUnselectedPCLine ctermbg=black guibg=black
