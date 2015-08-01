@@ -11,11 +11,17 @@ let g:loaded_lldb = 1
 if !exists('g:lldb#session#file')
   let g:lldb#session#file = 'lldb-nvim.json'
 endif
-if !exists('g:lldb#session#backup_file_pat')
-  let g:lldb#session#backup_file_pat = '.{0}.bak'
+if !exists('g:lldb#session#file_bak')
+  let g:lldb#session#file_bak = '.{@file}.bak'
+endif
+if !exists('g:lldb#session#mode_setup')
+  let g:lldb#session#mode_setup = 'lldb#layout#setup'
+endif
+if !exists('g:lldb#session#mode_teardown')
+  let g:lldb#session#mode_teardown = 'lldb#layout#teardown'
 endif
 
-command! LLredraw call lldb#layout#teardown() | call lldb#layout#setup()
+command! LLredraw call lldb#layout#switch_mode()
 
 highlight LLSelectedPCLine ctermbg=darkblue guibg=darkblue
 highlight LLUnselectedPCLine ctermbg=black guibg=black

@@ -29,7 +29,7 @@ class Controller(Thread):
 
     self.vimx = vimx # represents the parent Middleman object
     self.buffers = VimBuffers(vimx)
-    self.session = Session(vimx)
+    self.session = Session(self, vimx)
     super(Controller, self).__init__()
 
   def safe_call(self, method, args=[], sync=False): # safe_ marks thread safety

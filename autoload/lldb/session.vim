@@ -38,13 +38,17 @@ function! lldb#session#complete(ArgLead, CmdLine, CursorPos)
     let toknum += 1
   endif
   if toknum == 2
-    let subcmds = ['new', 'load', 'save', 'show']
+    let subcmds = ['new', 'load']
+    call extend(subcmds, ['mode', 'save', 'show']) "if session active
     return s:complete_prefix(subcmds, a:ArgLead)
   endif
   let subcmd = tokens[1]
   if toknum == 3
     if subcmd == 'load' || subcmd == 'save'
       return s:complete_file(a:ArgLead)
+    elseif subcmd == 'mode'
+      let modcmds = ['code', 'debug']
+      return s:complete_prefix(modcmds, a:ArgLead)
     endif
   endif
 endfun
@@ -66,7 +70,7 @@ function! lldb#session#new(has_state)
   let session_file = input('Write session file to: ', g:lldb#session#file, 'file')
   let target = input('Path to target executable: ', s:find_xfiles(), 'file')
   return { "_file": session_file,
-         \ "_bak_pat": g:lldb#session#backup_file_pat,
+         \ "_file_bak": g:lldb#session#file_bak,
          \ "target": target
          \ }
 endfun

@@ -17,9 +17,9 @@ function! lldb#layout#init_buffers()
   return s:buffer_map
 endfun
 
-function! lldb#layout#setup()
-  if !exists('s:buffer_map') || empty(s:buffer_map)
-    call lldb#layout#init_buffers()
+function! lldb#layout#setup(mode)
+  if a:mode != 'debug'
+    return
   endif
   let code_buf = bufnr('%')
   if index(s:buffers, code_buf) >= 0
@@ -60,6 +60,22 @@ function! lldb#layout#teardown(...)
       tabc
     endif
   endfor
+endfun
+
+function! lldb#layout#switch_mode(...)
+  if !exists('s:buffer_map') || empty(s:buffer_map)
+    call lldb#layout#init_buffers()
+  endif
+  if exists('g:lldb#session#_mode')
+    call call(g:lldb#session#mode_teardown, [g:lldb#session#_mode])
+    let new_mode = g:lldb#session#_mode
+  elseif a:0 == 0
+    echom 'No session modes found!'
+    return
+  endif
+  let new_mode = a:0 ? a:1 : new_mode
+  call call(g:lldb#session#mode_setup, [new_mode])
+  let g:lldb#session#_mode = new_mode
 endfun
 
 function! lldb#layout#signjump(bufnr, signid)
