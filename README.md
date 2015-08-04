@@ -34,6 +34,19 @@ you may have to execute:
 which will create a manifest file (`~/.nvim/.nvimrc-rplugin~`) containing some mappings;
 then restart Neovim. This might already be taken care of by the plugin manager, but I'm not sure.
 
+## Goals
+
+The plugin is developed keeping 3 broad goals in mind:
+
+* **Ease of use**: Users with almost zero knowledge of command line debuggers should feel comfortable using this plugin.
+* **Completeness**: Experienced users of LLDB should not feel restricted.
+* **Customizability**: Users should be able to bend this plugin easily in the following aspects:
+    * Display of debugger status (eg. backtrace)
+    * Visual layout or window management
+    * Key-bindings
+
+As of 0.3 release, none of these goals are met.
+
 ## Getting started
 
 Watch a [demo video](https://youtu.be/aXSNhTH1Co4), or refer to the getting

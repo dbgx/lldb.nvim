@@ -50,7 +50,7 @@ FEATURES                                                *lldb-features*
 * Tab-completion for LLDB commands
 * Event-based UI updates
 * Non-blocking UI
-  Exception: Blocks when fetching the tab-completion list.
+  Exception: May block while fetching the tab-completion list.
 * Customizable Layout
   See |lldb-customizing|.
 
@@ -67,11 +67,11 @@ at that line. Alternatively, you can execute:
 >
     :LLbreakpoint set --name function_name
 <
-Now, press <S-F5> or call LLUpdateLayout(), and execute one of
+Now, execute |:LLredraw|, and execute one of
 >
     :LLprocess launch
-    :LLprocess launch args
-    :LLprocess launch -i stdin_redir_file -o stdout_redir_file args
+    :LLprocess launch -- args
+    :LLprocess launch -i infile -o outfile -- args
 <
 Once the program reaches the specified breakpoint you will be able to
 inspect state and step through the program using the commands described below.
@@ -229,12 +229,10 @@ and post the log along with the bug report.
 
 CONTRIBUTING                                            *lldb-contributing*
 
-If you want to help out you are more then welcome to do so. In fact
-I am sure there are plenty of people out there that will do a better
-job with this plugin than me. My C skills are more than rusty. I mostly
-wanted to make this nice plugin more public and host it in a way in which
-it is easy to install with your favorite plugin manager.
-
-Long story short: Bring on your forks and pull requests.
+That'd would be great! But until version 0.9 is released, I'll be making many
+breaking changes to the plugin. You can monitor the progress in dev-branches.
+For instance, I've planned taking out most of the LL- commands and replacing
+it with a prompt, enabling execution of literally any commands, and definition
+of aliases. Therefore please wait until the plugin workflow is stabilized.
 
  vim:tw=78:sw=4:ft=help:norl:
