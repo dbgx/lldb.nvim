@@ -15,7 +15,8 @@ http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/
 
 ## Prerequisites
 
-* [Neovim](https://github.com/neovim/neovim) with [python support](https://github.com/neovim/python-client).
+* [Neovim](https://github.com/neovim/neovim)
+* [Neovim python2-client](https://github.com/neovim/python-client) (release >= 0.0.38)
 * [LLDB](http://lldb.llvm.org/)
 
 ## Installation
@@ -24,24 +25,23 @@ Installation is easiest using a plugin manager such as [vim-plug](https://github
 ```
     Plug "critiqjo/lldb.nvim"
 ```
-Or you can manually copy the files to your `~/.nvimrc` folder if you prefer that for some reason.
+Or manually copy the files to your `~/.nvimrc` folder.
 
 Note: After installing (or updating) a plugin that uses Neovim's remote plugin API,
-you may have to execute:
+you (might) have to execute:
 ```
     :UpdateRemotePlugins
 ```
-which will create a manifest file (`~/.nvim/.nvimrc-rplugin~`) containing some mappings;
-then restart Neovim. This might already be taken care of by the plugin manager, but I'm not sure.
+and restart Neovim.
 
 ## Goals
 
-The plugin is developed keeping 3 broad goals in mind:
+The plugin is being developed keeping 3 broad goals in mind:
 
 * **Ease of use**: Users with almost zero knowledge of command line debuggers should feel comfortable using this plugin.
 * **Completeness**: Experienced users of LLDB should not feel restricted.
 * **Customizability**: Users should be able to bend this plugin easily in the following aspects:
-    * Display of debugger status (eg. backtrace)
+    * Display of debugger status (eg. customisable disassembly view)
     * Visual layout or window management
     * Key-bindings
 

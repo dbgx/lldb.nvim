@@ -8,7 +8,7 @@ class Session:
     self.internal = {}
 
   def switch_mode(self, new_mode):
-    if not new_mode in self.state['modes']:
+    if 'modes' not in self.state or new_mode not in self.state['modes']:
       self.vimx.log("Invalid mode!")
       return
     if '@mode' in self.internal:
@@ -23,7 +23,7 @@ class Session:
     from os import path
 
     if cmd == 'new':
-      ret = self.vimx.eval("lldb#session#new(%d)" % len(self.state))
+      ret = self.vimx.call("lldb#session#new", len(self.state))
       if not (ret and '_file' in ret and '_file_bak' in ret):
         # FIXME accept blank _file or _file_bak?
         self.vimx.log("Skipped -- no session was created!")
