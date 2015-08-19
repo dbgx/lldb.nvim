@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import json
 
 class Session:
   def __init__(self, ctrl, vimx):
@@ -6,77 +7,129 @@ class Session:
     self.vimx = vimx
     self.state = OrderedDict()
     self.internal = {}
+    self.json_decoder = json.JSONDecoder(object_pairs_hook=OrderedDict)
+
+  def format(self, s):
+    return s.format(**self.state['variables'])
+
+  def act(self, actions):
+    from os import path
+    lled = False
+
+    for action in actions:
+      if isinstance(action, basestring):
+        t, a = 'll', action
+      else:
+        t, a = action
+
+      if t == 'sh':
+        pass
+      elif t == 'bp':
+        if a == 'set':
+          for key, vals in self.state['breakpoints'].items():
+            if key == "@ll":
+              for cmd in vals:
+                parts = self.format(cmd).split()
+                self.ctrl.exec_command(parts[0], ' '.join(parts[1:]))
+            else:
+              p = key if key[0] == '/' else path.join(self.internal['@dir'], key)
+              for l in vals:
+                self.ctrl.exec_command('break', 'set -f %s -l %d' % (p, l))
+          lled = True
+        elif a == 'save':
+          pass
+      elif t == 'll':
+        parts = self.format(a).split()
+        self.ctrl.exec_command(parts[0], ' '.join(parts[1:]))
+        lled = True
+
+    if lled: # FIXME make this unnecessary
+      self.ctrl.update_buffers(buf='!all')
 
   def switch_mode(self, new_mode):
     if 'modes' not in self.state or new_mode not in self.state['modes']:
       self.vimx.log("Invalid mode!")
       return
     if '@mode' in self.internal:
-      pass # TODO teardown
-    if 'setup' in self.state['modes']:
-      for action in self.state['modes']['setup']:
-        pass # TODO setup
+      mode = self.internal['@mode']
+      if 'teardown' in self.state['modes'][mode]:
+        self.act(self.state['modes'][mode]['teardown'])
+    if 'setup' in self.state['modes'][new_mode]:
+      self.act(self.state['modes'][new_mode]['setup'])
     self.internal['@mode'] = new_mode
     self.vimx.command('call lldb#layout#switch_mode("%s")' % new_mode)
 
-  def handle(self, cmd, *args):
+  def set_internal(self, confpath):
     from os import path
+    head, tail = path.split(path.abspath(confpath))
+    self.internal["@dir"] = head
+    self.internal["@file"] = tail
 
+  def handle(self, cmd, *args):
     if cmd == 'new':
       ret = self.vimx.call("lldb#session#new", len(self.state))
-      if not (ret and '_file' in ret and '_file_bak' in ret):
-        # FIXME accept blank _file or _file_bak?
+      if not ret or '_file' not in ret:
+        # FIXME accept blank _file?
         self.vimx.log("Skipped -- no session was created!")
         return
-      head, tail = path.split(path.abspath(ret["_file"]))
+      self.set_internal(ret["_file"])
 
-      self.internal["@dir"] = head
-      self.internal["@file"] = tail
-      self.internal["@file_bak"] = ret['_file_bak'].format(**{'@file': tail})
-
-      self.state["variables"] = OrderedDict()
-      self.state["modes"] = OrderedDict([
-          ("code", { }),
-          ("debug", {
-            "setup": [ "{@bp-set}", ],
-            "teardown": [ "{@bp-save}" ]
-          })
-        ])
+      self.state = self.json_decoder.decode("""
+        {
+          "variables": {},
+          "modes": {
+            "code": {},
+            "debug": {
+              "setup": [
+                ["bp", "set"]
+              ],
+              "teardown": [
+                ["bp", "save"]
+              ]
+            }
+          },
+          "breakpoints": {
+            "@ll": "break set -n main"
+          }
+        }""")
 
       if 'target' in ret and len(ret['target']):
         self.state["variables"]["target"] = ret["target"]
         debug = self.state["modes"]["debug"]
         debug["setup"].insert(0, "target create {target}")
-        debug["setup"].append("process launch --stop-at-entry")
+        debug["setup"].append("process launch")
         debug["teardown"].append("target delete")
 
-      self.state["breakpoints"] = []
       self.switch_mode('code')
 
     elif cmd == 'load' or cmd == 'save':
       if len(args) == 0:
-        path = self.vimx.eval('findfile(g:lldb#session#file, ".;")')
+        confpath = self.vimx.eval('findfile(g:lldb#session#file, ".;")')
       elif len(args) == 1:
-        path = args[0]
+        confpath = args[0]
       else:
         self.vimx.log("Too many arguments!")
         return
 
       if cmd == 'load':
-        # TODO load(fp, object_pairs_hook=OrderedDict)
-        self.vimx.log("Load %s" % path)
+        with open(confpath) as f:
+          self.state = self.json_decoder.decode(''.join(f.readlines()))
+        # TODO check for validity
+        # FIXME if a session is active, confirm whether to discard it
+        self.set_internal(confpath)
+        self.vimx.log("Loaded %s" % confpath)
       else:
-        self.vimx.log("Save to %s" % path)
+        self.vimx.log("(Todo) Save to %s" % confpath)
 
-    elif cmd == 'mode':
+    elif cmd == 'mode': # FIXME move this to a different command (LLmode?)
       if not len(args) == 1:
-        self.vimx.log("Invalide number of arguments!")
+        self.vimx.log("Invalid number of arguments!")
         return
       self.switch_mode(args[0])
 
     elif cmd == 'show':
       if len(self.state) and len(self.internal) and self.internal['@file']:
-        import json
+        from os import path
         file_path = path.join(self.internal['@dir'], self.internal['@file'])
         sfile_bufnr = self.vimx.buffer_add(file_path)
         def json_show(b):

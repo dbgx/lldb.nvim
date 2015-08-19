@@ -70,7 +70,6 @@ function! lldb#session#new(has_state)
   let session_file = input('Write session file to: ', g:lldb#session#file, 'file')
   let target = input('Path to target executable: ', s:find_xfiles(), 'file')
   return { "_file": session_file,
-         \ "_file_bak": g:lldb#session#file_bak,
          \ "target": target
          \ }
 endfun

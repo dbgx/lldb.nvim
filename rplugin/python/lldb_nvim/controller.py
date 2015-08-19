@@ -172,7 +172,7 @@ class Controller(Thread):
     result = lldb.SBCommandReturnObject()
     cmd = "%s %s" % (command, args)
 
-    self.interpreter.HandleCommand(cmd, result)
+    self.interpreter.HandleCommand(cmd.encode('ascii', 'ignore'), result)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
   def exec_command(self, command, args, show_result=True, jump2pc=False):

@@ -11,9 +11,6 @@ let g:loaded_lldb = 1
 if !exists('g:lldb#session#file')
   let g:lldb#session#file = 'lldb-nvim.json'
 endif
-if !exists('g:lldb#session#file_bak')
-  let g:lldb#session#file_bak = '.{@file}.bak'
-endif
 if !exists('g:lldb#session#mode_setup')
   let g:lldb#session#mode_setup = 'lldb#layout#setup'
 endif
