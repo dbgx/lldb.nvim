@@ -63,3 +63,30 @@ started section in the vim-docs (`:h lldb-start`).
 Have you tried `:UpdateRemotePlugins` and restarting Neovim? If you did, and
 the problem persists, please file a bug report (also see `:help lldb-bugs`).
 (I forget this all the time!)
+
+### How do I attach to a running process?
+
+To be able to attach, the "attacher" needs to have special permissions. The
+easiest method is to run a debug server as 'sudo' and connect to it.
+See the question below.
+
+### Remote debugging does not work!!
+
+I haven't been able to get `gdbserver`, `lldb-gdbserver` or `lldb-server gdbserver`
+to work properly with the python API. But the following works; run:
+
+```
+# use sudo if you want to attach to a running process
+$ lldb-server platform --listen localhost:2345
+```
+
+The above command will start the server in platform mode and listen for connections
+on port 2345. Now, from the client (the plugin), run:
+
+```
+(lldb) platform select remote-linux
+(lldb) platform connect connect://localhost:2345
+(lldb) process attach --name cat
+```
+
+For more info on this, see [Remote Debugging](http://lldb.llvm.org/remote.html).

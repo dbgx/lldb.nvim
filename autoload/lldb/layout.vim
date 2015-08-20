@@ -3,7 +3,7 @@ function! lldb#layout#init_buffers()
   let s:buffer_map = {}
   let u_bnr = bufnr('%')
   for bname in s:buffers
-    let bnr = bufnr('lldb_' . bname, 1)
+    let bnr = bufnr('[lldb]' . bname, 1)
     call setbufvar(bnr, '&bt', 'nofile')
     call setbufvar(bnr, '&swf', 0)
     call setbufvar(bnr, '&ma', 0)
