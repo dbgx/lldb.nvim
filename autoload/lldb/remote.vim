@@ -11,45 +11,15 @@ function! lldb#remote#init(chan_id)
   au VimLeavePre * call <SID>llnotify('exit')
 
   " each key maps to [nargs, complete]; default: ['0', <s:llcomplete>]
-  let s:cmd_map = { 'apropos':      ['1'],
-                  \ 'breakpoint':   ['*'],
-                  \ 'bt':           [],
-                  \ 'command':      ['*'],
-                  \ 'continue':     ['*'],
-                  \ 'detach':       ['*'],
-                  \ 'disassemble':  ['*'],
-                  \ 'down':         ['?'],
-                  \ 'expression':   ['*'],
-                  \ 'finish':       ['*'],
-                  \ 'frame':        ['*'],
-                  \ 'help':         ['*'],
-                  \ 'log':          ['*'],
-                  \ 'next':         ['*'],
-                  \ 'platform':     ['*'],
-                  \ 'plugin':       ['*'],
-                  \ 'po':           ['*'],
-                  \ 'print':        ['*'],
-                  \ 'process':      ['*'],
-                  \ 'refresh':      [],
-                  \ 'regexpbreak':  ['*'],
-                  \ 'register':     ['*'],
-                  \ 'settings':     ['*'],
-                  \ 'source':       ['*'],
-                  \ 'step':         ['*'],
-                  \ 'target':       ['*'],
-                  \ 'tbreak':       ['*'],
-                  \ 'thread':       ['*'],
-                  \ 'type':         ['*'],
-                  \ 'up':           ['?'],
-                  \ 'version':      [],
-                  \ 'watchpoint':   ['*'],
-                  \ 'mode':         ['1', 'customlist,lldb#session#complete']
+  let s:cmd_map = { 'refresh':   [],
+                  \ 'mode':      ['1', 'customlist,lldb#session#complete']
                   \ }
   call lldb#remote#define_commands()
 endfun
 
 function! s:llcomplete(arg, line, pos)
-  return rpcrequest(g:lldb#_channel_id, 'complete', a:arg, a:line, a:pos)
+  let p = match(a:line, '^LL \+\zs')
+  return rpcrequest(g:lldb#_channel_id, 'complete', a:arg, a:line[p : ], a:pos - p)
 endfun
 
 function! lldb#remote#define_commands()
@@ -58,14 +28,13 @@ function! lldb#remote#define_commands()
     let copts = ''
     if nargs != '0'
       let copts = ' -nargs='.nargs
-      let compl = len(props) == 1 ? 'customlist,<SID>llcomplete' : props[1]
-      if len(compl)
-        let compl = ' -complete=' . compl
+      if len(props) > 1
+        let copts .= ' -complete=' . props[1]
       endif
-      let copts .= compl
     endif
     exe 'command!' . copts . ' LL' . cmd . ' call <SID>llnotify("'. cmd . '", <f-args>)'
   endfor
+  command! -nargs=* -complete=customlist,<SID>llcomplete LL call <SID>llnotify("exec", <f-args>)
   nnoremap <silent> <Plug>LLBreakSwitch
           \ :call <SID>llnotify("breakswitch", bufnr("%"), getcurpos()[1])<CR>
 endfun

@@ -43,8 +43,9 @@ class Controller(Thread):
     if sync: # DECIDE timeout?
       return self.out_queue.get(True)
 
-  def safe_execute(self, cmd, args):
-    self.safe_call(self.exec_command, [cmd, ' '.join(args)])
+  def safe_execute(self, args):
+    cmd = ' '.join([ t.replace(' ', '\\ ') for t in args ])
+    self.safe_call(self.exec_command, [cmd])
 
   def safe_exit(self):
     self.safe_call(None)
@@ -52,14 +53,23 @@ class Controller(Thread):
 
   def complete_command(self, arg, line, pos):
     """ Returns a list of viable completions for line, and cursor at pos. """
+    pos = int(pos)
     result = lldb.SBStringList()
-    num = self.interpreter.HandleCompletion(line, pos, 1, -1, result)
 
-    if num == -2: # encountered history repeat character ?
-      pass
+    if arg == line and line != '':
+      # provide all possible completions when completing 't', 'b', 'di' etc.
+      num = self.interpreter.HandleCompletion('', 0, 1, -1, result)
+      cands = ['']
+      for x in result:
+        if x == line:
+          cands.insert(1, x)
+        elif x.startswith(line):
+          cands.append(x)
+    else:
+      num = self.interpreter.HandleCompletion(line, pos, 1, -1, result)
+      cands = [x for x in result]
 
-    if result.GetSize() > 0:
-      cands = [result.GetStringAtIndex(x) for x in range(result.GetSize())]
+    if num > 0:
       if cands[0] == '' and arg != '':
         if not cands[1].startswith(arg) or not cands[-1].startswith(arg):
           return []
@@ -112,44 +122,15 @@ class Controller(Thread):
       return self._process
     return None
 
-  def do_frame(self, args):
-    """ Handle 'frame' command. """
-    self.exec_command("frame", args)
-    if args.startswith('s'): # select
-      self.update_buffers()
+  # update_buffers() for:
+  # frame select
+  # thread select
 
-  def do_thread(self, args):
-    """ Handle 'thread' command. """
-    self.exec_command("thread", args)
-    if args.startswith('se'): # select
-      self.update_buffers()
+  # get_target()
+  # get_process()
 
-  def do_process(self, args):
-    """ Handle 'process' command. """
-    process = self.get_process()
-    if args.startswith("la"): # launch
-      if process:
-        process.Destroy()
-
-      (success, result) = self.get_command_result("process", args)
-      if not success:
-        self.vimx.log("Error during launch: " + str(result))
-        return
-      self.get_process() # add listener
-      self.vimx.log("%s" % result, 0)
-    else:
-      self.exec_command("process", args)
-
-  def do_target(self, args):
-    """ Handle 'target' command. """
-    (success, result) = self.get_command_result("target", args)
-    if not success:
-      self.vimx.log(str(result))
-    self.vimx.log(str(result), 0)
-    self.get_target()
-
-  def do_disassemble(self, args):
-    self.buffers._content_map['disassembly'][1][1] = args
+  def do_disassemble(self, cmd):
+    self.buffers._content_map['disassembly'][1] = cmd
     self.update_buffers(buf='disassembly')
 
   def do_breakswitch(self, bufnr, line):
@@ -161,23 +142,18 @@ class Controller(Thread):
     else:
       path = self.vimx.get_buffer_name(bufnr)
       args = "set -f %s -l %d" % (path, line)
-    self.do_breakpoint(args)
+    self.exec_command("breakpoint " + args)
 
-  def do_breakpoint(self, args):
-    """ Handle breakpoint command with command interpreter. """
-    self.exec_command("breakpoint", args)
-
-  def get_command_result(self, command, args=""):
+  def get_command_result(self, command):
     """ Run command in the command interpreter and returns (success, output) """
     result = lldb.SBCommandReturnObject()
-    cmd = "%s %s" % (command, args)
 
-    self.interpreter.HandleCommand(cmd.encode('ascii', 'ignore'), result)
+    self.interpreter.HandleCommand(command.encode('ascii', 'ignore'), result)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
-  def exec_command(self, command, args, show_result=True, jump2pc=False):
+  def exec_command(self, command, show_result=True, jump2pc=False):
     """ Run command in interpreter and possibly log the result as a vim message """
-    (success, output) = self.get_command_result(command, args)
+    (success, output) = self.get_command_result(command)
     if not success:
       self.vimx.log(output)
     elif show_result and len(output) > 0:

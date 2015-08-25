@@ -11,10 +11,10 @@ from .content_helper import *
 
 class VimBuffers:
   _content_map = {
-      "backtrace": ( "command", ["bt", ""] ),
-      "breakpoints": ( "command", ["breakpoint", "list"] ),
-      "disassembly": ( "command", ["disassemble", "-c 20 -p"] ),
-      "threads": ( "command", ["thread", "list"] ),
+      "backtrace": ( "command", "bt" ),
+      "breakpoints": ( "command", "breakpoint list" ),
+      "disassembly": ( "command", "disassemble -c 20 -p" ),
+      "threads": ( "command", "thread list" ),
       "locals": ( "cb_on_target", get_locals_content ),
       "registers": ( "cb_on_target", get_registers_content ),
   }
@@ -122,7 +122,7 @@ class VimBuffers:
     content = VimBuffers._content_map[buf]
     if content[0] == 'command':
       proc_stat = get_process_stat(target)[1]
-      success, output = commander(*content[1])
+      success, output = commander(content[1])
       if not success and proc_stat:
         output = proc_stat
       results = output.split('\n')

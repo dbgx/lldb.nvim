@@ -33,18 +33,16 @@ class Session:
           for key, vals in self.state['breakpoints'].items():
             if key == "@ll":
               for cmd in vals:
-                parts = self.format(cmd).split()
-                self.ctrl.exec_command(parts[0], ' '.join(parts[1:]))
+                self.ctrl.exec_command(self.format(cmd))
             else:
               p = key if key[0] == '/' else path.join(self.internal['@dir'], key)
               for l in vals:
-                self.ctrl.exec_command('break', 'set -f %s -l %d' % (p, l))
+                self.ctrl.exec_command('breakpoint set -f %s -l %d' % (p, l))
           lled = True
         elif a == 'save':
           pass
       elif t == 'll':
-        parts = self.format(a).split()
-        self.ctrl.exec_command(parts[0], ' '.join(parts[1:]))
+        self.ctrl.exec_command(self.format(a))
         lled = True
 
     if lled: # FIXME make this unnecessary
@@ -93,7 +91,7 @@ class Session:
             }
           },
           "breakpoints": {
-            "@ll": ["break set -n main"]
+            "@ll": ["breakpoint set -n main"]
           }
         }""")
 
