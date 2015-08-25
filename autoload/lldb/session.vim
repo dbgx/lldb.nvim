@@ -31,11 +31,13 @@ function! s:complete_prefix(list, lead)
 endfun
 
 function! lldb#session#complete(ArgLead, CmdLine, CursorPos)
-  let solid = substitute(a:CmdLine, '\\ ', '#', 'g')
-  let tokens = split(solid, ' \+')
+  let tokens = split(a:CmdLine, '\%(^\|[^\\]\)\zs \+')
   let toknum = len(tokens)
-  if solid[-1:] == ' '
+  if a:ArgLead[-1:] == ' ' && a:ArgLead[-2:] != '\ '
     let toknum += 1
+  endif
+  if tokens[0] == 'LLmode'
+    return s:complete_prefix(['code', 'debug'], a:ArgLead)
   endif
   if toknum == 2
     let subcmds = ['new', 'load']
@@ -46,9 +48,6 @@ function! lldb#session#complete(ArgLead, CmdLine, CursorPos)
   if toknum == 3
     if subcmd == 'load' || subcmd == 'save'
       return s:complete_file(a:ArgLead)
-    elseif subcmd == 'mode'
-      let modcmds = ['code', 'debug']
-      return s:complete_prefix(modcmds, a:ArgLead)
     endif
   endif
 endfun
@@ -68,6 +67,9 @@ function! lldb#session#new(has_state)
     return
   endif
   let session_file = input('Write session file to: ', g:lldb#session#file, 'file')
+  if len(session_file) == 0
+    return
+  endif
   let target = input('Path to target executable: ', s:find_xfiles(), 'file')
   return { "_file": session_file,
          \ "target": target

@@ -3,6 +3,10 @@ import json
 
 class Session:
   def __init__(self, ctrl, vimx):
+    import logging
+    self.logger = logging.getLogger(__name__)
+    self.logger.setLevel(logging.INFO)
+
     self.ctrl = ctrl
     self.vimx = vimx
     self.state = OrderedDict()
@@ -57,7 +61,7 @@ class Session:
     if 'setup' in self.state['modes'][new_mode]:
       self.act(self.state['modes'][new_mode]['setup'])
     self.internal['@mode'] = new_mode
-    self.vimx.command('call lldb#layout#switch_mode("%s")' % new_mode)
+    self.vimx.call('lldb#layout#switch_mode', new_mode, async=True)
 
   def set_internal(self, confpath):
     from os import path
@@ -89,7 +93,7 @@ class Session:
             }
           },
           "breakpoints": {
-            "@ll": "break set -n main"
+            "@ll": ["break set -n main"]
           }
         }""")
 
@@ -120,12 +124,6 @@ class Session:
         self.vimx.log("Loaded %s" % confpath)
       else:
         self.vimx.log("(Todo) Save to %s" % confpath)
-
-    elif cmd == 'mode': # FIXME move this to a different command (LLmode?)
-      if not len(args) == 1:
-        self.vimx.log("Invalid number of arguments!")
-        return
-      self.switch_mode(args[0])
 
     elif cmd == 'show':
       if len(self.state) and len(self.internal) and self.internal['@file']:

@@ -20,8 +20,12 @@ class Middleman(object):
     vim.command('call lldb#remote#init(%d)' % vim.channel_id)
 
   @neovim.command('LLsession', nargs='+', complete='customlist,lldb#session#complete')
-  def _start(self, args):
+  def _session(self, args):
     self.ctrl.safe_call(self.ctrl.session.handle, args)
+
+  @neovim.rpc_export('mode')
+  def _mode(self, mode):
+    self.ctrl.safe_call(self.ctrl.session.switch_mode, [mode])
 
   @neovim.rpc_export('exit')
   def _exit(self):

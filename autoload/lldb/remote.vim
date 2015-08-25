@@ -1,4 +1,7 @@
-function! s:llnotify(event, ...)
+function! s:llnotify(event, ...) abort
+  if !exists('g:lldb#_channel_id')
+    throw 'LLDB: channel id not defined!'
+  endif
   let arg_list = extend([g:lldb#_channel_id, a:event], a:000)
   call call('rpcnotify', arg_list)
 endfun
@@ -39,7 +42,8 @@ function! lldb#remote#init(chan_id)
                   \ 'type':         ['*'],
                   \ 'up':           ['?'],
                   \ 'version':      [],
-                  \ 'watchpoint':   ['*']
+                  \ 'watchpoint':   ['*'],
+                  \ 'mode':         ['1', 'customlist,lldb#session#complete']
                   \ }
   call lldb#remote#define_commands()
 endfun
