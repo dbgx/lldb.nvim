@@ -86,9 +86,8 @@ class VimBuffers:
       return
 
     needed_bps = {}
-    for bp_index in range(target.GetNumBreakpoints()):
-      bp = target.GetBreakpointAtIndex(bp_index)
-      bplocs = get_bploc_tuples(bp, self.vimx.log)
+    for bp in target.breakpoint_iter():
+      bplocs = get_bploc_tuples(bp)
       for (is_resolved, filepath, line) in bplocs:
         if filepath and os.path.exists(filepath):
           bufnr = self.vimx.buffer_add(filepath)
@@ -126,27 +125,19 @@ class VimBuffers:
       if not success and proc_stat:
         output = proc_stat
       results = output.split('\n')
-      if buf == 'breakpoints':
-        self.update_breakpoints(target)
     elif content[0] == 'cb_on_target':
       results = content[1](target)
-    bufnr = self.buf_map[buf]
 
-    def update_mapper(b):
-      if b.number == bufnr:
-        b.options['ma'] = True
-        b[:] = results
-        b.options['ma'] = False
-        raise StopIteration
+    if buf == 'breakpoints':
+      self.update_breakpoints(target)
 
-    self.vimx.map_buffers(update_mapper)
+    self.vimx.update_noma_buffer(self.buf_map[buf], results)
 
-  def update(self, target, commander, jump2pc=False, exclude_buf=[]):
+  def update(self, target, commander, jump2pc=False):
     """ Updates signs, buffers, and possibly jumps to pc. """
     self.update_pc(target, jump2pc)
 
     for buf in VimBuffers._content_map.keys():
-      if buf not in exclude_buf:
-        self.update_buffer(buf, target, commander)
+      self.update_buffer(buf, target, commander)
 
 # vim:et:ts=2:sw=2

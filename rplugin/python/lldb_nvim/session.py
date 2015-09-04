@@ -52,6 +52,7 @@ class Session:
     if 'modes' not in self.state or new_mode not in self.state['modes']:
       self.vimx.log("Invalid mode!")
       return
+    self.ctrl.busy_more()
     if '@mode' in self.internal:
       mode = self.internal['@mode']
       if 'teardown' in self.state['modes'][mode]:
@@ -60,6 +61,8 @@ class Session:
       self.act(self.state['modes'][new_mode]['setup'])
     self.internal['@mode'] = new_mode
     self.vimx.call('lldb#layout#switch_mode', new_mode, async=True)
+    self.ctrl.busy_less()
+    self.ctrl.update_buffers()
 
   def set_internal(self, confpath):
     from os import path

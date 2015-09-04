@@ -28,9 +28,22 @@ class Controller(Thread):
     self.interrupter.AddListener(self.listener, self.CTRL_VOICE)
 
     self.vimx = vimx # represents the parent Middleman object
+    self.busy_stack = 0 # when busy > 0, buffers are not updated
     self.buffers = VimBuffers(vimx)
     self.session = Session(self, vimx)
     super(Controller, self).__init__()
+
+  def is_busy(self):
+    return self.busy_stack > 0
+
+  def busy_more(self):
+    self.busy_stack += 1
+
+  def busy_less(self):
+    self.busy_stack -= 1
+    if self.busy_stack < 0:
+      self.logger.critical("busy_stack < 0")
+      self.busy_stack = 0
 
   def safe_call(self, method, args=[], sync=False): # safe_ marks thread safety
     if self.dbg is None:
@@ -83,15 +96,13 @@ class Controller(Thread):
             Whether or not to move the cursor to the program counter (PC).
         @param buf
             If None, all buffers and signs excepts breakpoints would be updated.
-            If '!all', all buffers incl. breakpoints would be updated.
             Otherwise, update only the specified buffer.
     """
-    excl = ['breakpoints']
+    if self.is_busy():
+      return
     commander = self.get_command_result
     target = self.get_target()
     if buf is None:
-      self.buffers.update(target, commander, jump2pc, excl)
-    elif buf == '!all':
       self.buffers.update(target, commander, jump2pc)
     else:
       self.buffers.update_buffer(buf, target, commander)
@@ -105,29 +116,20 @@ class Controller(Thread):
       target.broadcaster.AddListener(self.listener,
           lldb.SBTarget.eBroadcastBitBreakpointChanged)
           # TODO WatchpointChanged
-      self.update_buffers(buf='!all')
       return target
     return None
 
-  def get_process(self):
+  def has_process_changed(self):
     if self._process and self._process.IsValid():
-      return self._process
+      return False
     target = self.get_target()
     if target and target.process and target.process.IsValid():
       self._process = target.process
       self._process.broadcaster.AddListener(self.listener,
           lldb.SBProcess.eBroadcastBitStateChanged)
           # TODO STDOUT, STDERR
-      self.update_buffers()
-      return self._process
-    return None
-
-  # update_buffers() for:
-  # frame select
-  # thread select
-
-  # get_target()
-  # get_process()
+      return True
+    return False
 
   def do_disassemble(self, cmd):
     self.buffers._content_map['disassembly'][1] = cmd
@@ -145,19 +147,27 @@ class Controller(Thread):
     self.exec_command("breakpoint " + args)
 
   def get_command_result(self, command):
-    """ Run command in the command interpreter and returns (success, output) """
+    """ Runs command in the interpreter and returns (success, output) """
+    # Do not call this directly for commands which changes debugger state;
+    # use exec_command instead
     result = lldb.SBCommandReturnObject()
 
     self.interpreter.HandleCommand(command.encode('ascii', 'ignore'), result)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
-  def exec_command(self, command, show_result=True, jump2pc=False):
-    """ Run command in interpreter and possibly log the result as a vim message """
+  def exec_command(self, command, show_result=True):
+    """ Runs command in the interpreter, calls update_buffers, and possibly
+        display the result as a vim message. Returns True if succeeded. """
     (success, output) = self.get_command_result(command)
     if not success:
       self.vimx.log(output)
     elif show_result and len(output) > 0:
       self.vimx.log(output, 0)
+
+    if self.has_process_changed():
+      pass # TODO
+    self.update_buffers()
+    return success
 
   def run(self):
     import traceback
@@ -191,7 +201,7 @@ class Controller(Thread):
         elif event_matches(self._target.broadcaster):
           self.update_buffers(buf='breakpoints')
         elif event_matches(self._process.broadcaster):
-          self.update_buffers(buf='!all')
+          self.update_buffers()
       else: # Timed out
         to_count += 1
         if to_count > 172800: # 60 days worth idleness! barrier to prevent infinite loop

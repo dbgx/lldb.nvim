@@ -6,6 +6,7 @@ class VimX:
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
     self._vim = vim
+    self.buffer_cache = {}
 
   def call(self, *args, **kwargs):
     vim = self._vim
@@ -95,3 +96,23 @@ class VimX:
     """ Create all lldb buffers and initialize the buffer map. """
     buf_map = self.call('lldb#layout#init_buffers')
     return buf_map
+
+  def update_noma_buffer(self, bufnr, content): # buffer which are internally controlled
+
+    def update_mapper(b):
+      if b.number == bufnr:
+        b.options['ma'] = True
+        b[:] = content
+        b.options['ma'] = False
+        raise StopIteration
+
+    has_mod = True
+    if bufnr in self.buffer_cache and content.len() == self.buffer_cache[bufnr].len():
+      has_mod = False
+      for i in range(0, content.len()):
+        if content[i] != self.buffer_cache[bufnr][i]:
+          has_mod = True
+          break
+
+    if has_mod:
+      self.map_buffers(update_mapper)
