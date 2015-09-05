@@ -25,7 +25,7 @@ class Middleman(object):
 
   @neovim.rpc_export('mode')
   def _mode(self, mode):
-    self.ctrl.safe_call(self.ctrl.session.switch_mode, [mode])
+    self.ctrl.safe_call(self.ctrl.session.mode_setup, [mode])
 
   @neovim.rpc_export('exec')
   def _exec(self, *args):
@@ -50,7 +50,7 @@ class Middleman(object):
 
   @neovim.rpc_export('refresh')
   def _refresh(self):
-    self.ctrl.safe_call(self.ctrl.update_buffers, [False, '!all'])
+    self.ctrl.safe_call(self.ctrl.update_buffers, [False])
 
   @neovim.rpc_export('watchswitch')
   def _watchpoint(self, var_name):

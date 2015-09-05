@@ -21,6 +21,9 @@ function! lldb#layout#setup(mode)
   if a:mode != 'debug'
     return
   endif
+  if !exists('s:buffer_map') || empty(s:buffer_map)
+    call lldb#layout#init_buffers()
+  endif
   let code_buf = bufnr('%')
   if index(s:buffers, code_buf) >= 0
     let code_buf = '[No Name]'
@@ -37,7 +40,7 @@ function! lldb#layout#setup(mode)
   exe bufwinnr(code_buf) . "wincmd w"
 endfun
 
-" ignores all arguments
+" tears down windows (and tabs) containing debug buffers
 function! lldb#layout#teardown(...)
   if !exists('s:buffer_map') || empty(s:buffer_map)
     return
@@ -60,22 +63,6 @@ function! lldb#layout#teardown(...)
       tabc
     endif
   endfor
-endfun
-
-function! lldb#layout#switch_mode(...)
-  if !exists('s:buffer_map') || empty(s:buffer_map)
-    call lldb#layout#init_buffers()
-  endif
-  if exists('g:lldb#session#_mode')
-    call call(g:lldb#session#mode_teardown, [g:lldb#session#_mode])
-    let new_mode = g:lldb#session#_mode
-  elseif a:0 == 0
-    echom 'No session modes found!'
-    return
-  endif
-  let new_mode = a:0 ? a:1 : new_mode
-  call call(g:lldb#session#mode_setup, [new_mode])
-  let g:lldb#session#_mode = new_mode
 endfun
 
 function! lldb#layout#signjump(bufnr, signid)

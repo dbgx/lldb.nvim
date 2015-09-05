@@ -18,8 +18,6 @@ if !exists('g:lldb#session#mode_teardown')
   let g:lldb#session#mode_teardown = 'lldb#layout#teardown'
 endif
 
-command! LLredraw call lldb#layout#switch_mode()
-
 highlight LLSelectedPCLine ctermbg=darkblue guibg=darkblue
 highlight LLUnselectedPCLine ctermbg=black guibg=black
 sign define llsign_bpres text=B>

@@ -33,7 +33,7 @@ endfun
 function! lldb#session#complete(ArgLead, CmdLine, CursorPos)
   let tokens = split(a:CmdLine, '\%(^\|[^\\]\)\zs \+')
   let toknum = len(tokens)
-  if a:ArgLead[-1:] == ' ' && a:ArgLead[-2:] != '\ '
+  if a:CmdLine[-1:] == ' ' && a:CmdLine[-2:] != '\ '
     let toknum += 1
   endif
   if tokens[0] == 'LLmode'
@@ -41,7 +41,7 @@ function! lldb#session#complete(ArgLead, CmdLine, CursorPos)
   endif
   if toknum == 2
     let subcmds = ['new', 'load']
-    call extend(subcmds, ['mode', 'save', 'show']) "if session active
+    call extend(subcmds, ['reload', 'show']) " FIXME only if a session exists
     return s:complete_prefix(subcmds, a:ArgLead)
   endif
   let subcmd = tokens[1]
