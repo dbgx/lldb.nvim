@@ -45,7 +45,7 @@ class Controller(Thread):
       self.logger.critical("busy_stack < 0")
       self.busy_stack = 0
 
-  def safe_call(self, method, args=[], sync=False): # safe_ marks thread safety
+  def safe_call(self, method, args=[], sync=False, timeout=None): # threadsafe
     if self.dbg is None:
       self.logger.critical("Debugger was terminated!" +
           (" Attempted calling %s" % method.func_name if method else ""))
@@ -53,8 +53,8 @@ class Controller(Thread):
     self.in_queue.put((method, args, sync))
     interrupt = lldb.SBEvent(self.CTRL_VOICE, "the_sound")
     self.interrupter.BroadcastEvent(interrupt)
-    if sync: # DECIDE timeout?
-      return self.out_queue.get(True)
+    if sync:
+      return self.out_queue.get(True, timeout)
 
   def safe_execute(self, args):
     cmd = ' '.join([ t.replace(' ', '\\ ') for t in args ])

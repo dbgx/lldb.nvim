@@ -37,7 +37,7 @@ function! lldb#session#complete(ArgLead, CmdLine, CursorPos)
     let toknum += 1
   endif
   if tokens[0] == 'LLmode'
-    return s:complete_prefix(['code', 'debug'], a:ArgLead)
+    return s:complete_prefix(lldb#remote#get_modes(), a:ArgLead)
   endif
   if toknum == 2
     let subcmds = ['new', 'load']

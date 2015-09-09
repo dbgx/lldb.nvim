@@ -41,8 +41,20 @@ class Middleman(object):
 
   @neovim.rpc_export('complete', sync=True)
   def _complete(self, arg, line, pos):
-    return self.ctrl.safe_call(self.ctrl.complete_command,
-                               [arg, line, pos], True)
+    # FIXME user-customizable timeout?
+    try:
+      return self.ctrl.safe_call(self.ctrl.complete_command,
+                                 [arg, line, pos], True, timeout=3)
+    except Exception:
+      return []
+
+  @neovim.rpc_export('get_modes', sync=True)
+  def _get_modes(self):
+    try:
+      return self.ctrl.safe_call(self.ctrl.session.get_modes,
+                                 [], True, timeout=1)
+    except Exception:
+      return []
 
   @neovim.rpc_export('breakswitch')
   def _breakswitch(self, bufnr, line):

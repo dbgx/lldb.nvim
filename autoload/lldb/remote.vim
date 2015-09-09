@@ -22,6 +22,10 @@ function! s:llcomplete(arg, line, pos)
   return rpcrequest(g:lldb#_channel_id, 'complete', a:arg, a:line[p : ], a:pos - p)
 endfun
 
+function! lldb#remote#get_modes()
+  return rpcrequest(g:lldb#_channel_id, 'get_modes')
+endfun
+
 function! lldb#remote#define_commands()
   for [cmd, props] in items(s:cmd_map)
     let nargs = len(props) ? props[0] : '0'

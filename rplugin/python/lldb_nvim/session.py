@@ -20,6 +20,12 @@ class Session:
   def format(self, s):
     return s.format(**self.state['variables'])
 
+  def get_modes(self):
+    if 'modes' in self.state:
+      return self.state['modes'].keys()
+    else:
+      return []
+
   def run_actions(self, actions):
     from os import path
     lled = False
@@ -52,7 +58,7 @@ class Session:
     self.ctrl.busy_less()
 
   def mode_setup(self, mode):
-    if 'modes' not in self.state or mode not in self.state['modes']:
+    if mode not in self.get_modes():
       self.vimx.log("Invalid mode!")
       return
     self.mode_teardown()
