@@ -5,11 +5,11 @@ from .vim_buffers import VimBuffers
 from .session import Session
 
 class Controller(Thread):
-  """ Handles LLDB events and commands. """
+  """ Thread object that handles LLDB events and commands. """
 
   CTRL_VOICE = 238 # doesn't matter what this is
   def __init__(self, vimx):
-    """ Creates the LLDB SBDebugger object and initializes the VimBuffers class. """
+    """ Creates the LLDB SBDebugger object and more! """
     from Queue import Queue
     import logging
     self.logger = logging.getLogger(__name__)
@@ -46,6 +46,11 @@ class Controller(Thread):
       self.busy_stack = 0
 
   def safe_call(self, method, args=[], sync=False, timeout=None): # threadsafe
+    """ (Thread-safe) Call `method` with `args`. If `sync` is True, wait for
+        `method` to complete and return its value. If timeout is set and non-
+        negative, and the `method` did not complete within `timeout` seconds,
+        a Queue.Empty exception is raised!
+    """
     if self.dbg is None:
       self.logger.critical("Debugger was terminated!" +
           (" Attempted calling %s" % method.func_name if method else ""))
@@ -56,11 +61,17 @@ class Controller(Thread):
     if sync:
       return self.out_queue.get(True, timeout)
 
-  def safe_execute(self, args):
-    cmd = ' '.join([ t.replace(' ', '\\ ') for t in args ])
+  def safe_execute(self, tokens):
+    """ (Thread-safe) Executes an lldb command defined by a list of tokens.
+        If a token contains white-spaces, they are escaped using backslash.
+    """
+    cmd = ' '.join([ t.replace(' ', '\\ ') for t in tokens ])
     self.safe_call(self.exec_command, [cmd])
 
   def safe_exit(self):
+    """ Exit from the event-loop, and wait for the thread to join.
+        Should be called from outside this thread.
+    """
     self.safe_call(None)
     self.join()
 
@@ -108,6 +119,9 @@ class Controller(Thread):
       self.buffers.update_buffer(buf, target, commander)
 
   def get_target(self):
+    """ Get the selected target. If the target is not being tracked, add our
+        listener to its broadcaster for BreakpointChanged event.
+    """
     if self._target and self._target.IsValid():
       return self._target
     target = self.dbg.GetSelectedTarget()
@@ -119,7 +133,10 @@ class Controller(Thread):
       return target
     return None
 
-  def has_process_changed(self):
+  def has_new_process(self):
+    """ Check whether a new process was created. If so, add our listener to
+        its broadcaster for BitStateChanged event.
+    """
     if self._process and self._process.IsValid():
       return False
     target = self.get_target()
@@ -132,6 +149,7 @@ class Controller(Thread):
     return False
 
   def do_disassemble(self, cmd):
+    """ Change the `disassembly` buffer command and update it. """
     self.buffers._content_map['disassembly'][1] = cmd
     self.update_buffers(buf='disassembly')
 
@@ -147,9 +165,10 @@ class Controller(Thread):
     self.exec_command("breakpoint " + args)
 
   def get_command_result(self, command):
-    """ Runs command in the interpreter and returns (success, output) """
-    # Do not call this directly for commands which changes debugger state;
-    # use exec_command instead
+    """ Runs command in the interpreter and returns (success, output)
+        Not to be called directly for commands which changes debugger state;
+        use exec_command instead.
+    """
     result = lldb.SBCommandReturnObject()
 
     self.interpreter.HandleCommand(command.encode('ascii', 'ignore'), result)
@@ -164,12 +183,13 @@ class Controller(Thread):
     elif show_result and len(output) > 0:
       self.vimx.log(output, 0)
 
-    if self.has_process_changed():
+    if self.has_new_process():
       pass # TODO
     self.update_buffers()
     return success
 
   def run(self):
+    """ This thread's event loop. """
     import traceback
     from Queue import Empty
     to_count = 0
