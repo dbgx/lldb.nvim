@@ -56,125 +56,77 @@ FEATURES                                                *lldb-features*
 
 GETTING STARTED                                         *lldb-start*
 
-To quickly get started compile (with debugging symbols) the source and
+To quickly get started, compile (with debugging symbols) the source and
 open a source file belonging to the program in Neovim, and execute
 >
-    :LLtarget create /path/to/executable
+    :LLsession new
 <
-Notice that all built-in commands have tab-completion enabled.
-With cursor on some line in the source file, press <M-b> to set a breakpoint
-at that line. Alternatively, you can execute:
+This will prompt you to choose a location for your new "session" file, and
+further prompts you to input path of the target executable.
+
+The default session file defines 2 modes: "code", and "debug". You are now
+in the "code" mode, which is an empty mode. Now switch to "debug" mode:
 >
-    :LLbreakpoint set --name function_name
+    :LLmode debug
 <
-Now, execute |:LLredraw|, and execute one of
+Now, a new tab with windows showing various information about the state of
+debugger will be created. And you will prompted whether you would like to
+launch the process right away.
+
+With cursor on some line in the source file, press |<Plug>LLBreakSwitch| to
+set a breakpoint at that line. Alternatively, you can execute:
 >
-    :LLprocess launch
-    :LLprocess launch -- args
-    :LLprocess launch -i infile -o outfile -- args
+    :LL breakpoint set --name function_name
+<
+Notice that there is tab-completion. If you chose not to launch the process
+earlier, you can do so by one of the following commands:
+>
+    :LL process launch
+    :LL process launch -- args
+    :LL process launch -i infile -o outfile -- args
 <
 Once the program reaches the specified breakpoint you will be able to
-inspect state and step through the program using the commands described below.
+inspect state and step through the program ... bla bla bla.
 
 Don't forget that, since the debugger is asynchronous, you can interrupt an
 unresponsive process using:
 >
-    :LLprocess interrupt
-<
-Once it's interrupted, you can select your frame of interest using one of
->
-    :LLup [num]
-    :LLdown [num]
-    :LLframe select <frame-index>
+    :LL process interrupt
 <
 Alternatively, you can kill it using:
 >
-    :LLprocess kill
+    :LL process kill
 <
 CUSTOMIZING                                             *lldb-customizing*
 
-Later...
+ *g:lldb#session#file*
+                      Default session file name: 'lldb-nvim.json'
+
+ *g:lldb#session#mode_setup*
+                      Default layout setup function: 'lldb#layout#setup'
+                      This will be called every time a new mode is set up,
+                      with mode name as the first argument.
+
+ *g:lldb#session#mode_teardown*
+                      Default layout teardown function: 'lldb#layout#teardown'
+                      Similar to mode_setup above.
 
 COMMANDS                                                *lldb-commands*
 
-The LLDB command interpreter is exposed to Vim's command mode using the
-':LL' prefix. Tab-completion is available and will cycle through commands.
-Some commands have modified behaviour.
+                                                        *:LL*
+:LL {cmd}               Execute an arbitrary LLDB command {cmd} in the LLDB
+                        command interpreter.
 
-                                                        *:LLattach*
-:LLattach <proc-name>   Attach to a process by name.
-
-                                                        *:LLdetach*
-:LLdetach               Detach from the current process.
-
-                                                        *:LLframe*
-:LLframe {args}         Passed through to LLDB's command interpreter.
-
-                                                        *:LLthread*
-:LLthread {args}        Passes through to LLDB's command interpreter.
-
-                                                        *:LLprocess*
-:LLprocess {args}       Passed through to LLDB's command interpreter.
-
-                                                        *:LLtarget*
-:LLtarget {args}        Passed through to LLDB's command interpreter.
-
-                                                        *:LLbreakpoint*
-:LLbreakpoint {args}    Alias to the lldb breakpoint command.
-
-                                                        *:LLwatchpoint*
-:LLwatchpoint {args}    Alias to the lldb watchpoint command.
-
-                                                        *:LLstart*
-:LLstart                Create a process by executing the current target
-                        and wait for LLDB to attach.
-
-                                                        *:LLredraw*
-:LLredraw               Redraws the debugger layout, using the global layout
-                        variables. See |lldb-customizing|.
+                                                        *:LLmode*
+:LLmode {mode}          Switch to {mode}, by tearing down the current mode,
+                        and executing the setup actions of {mode}
 
                                                         *:LLrefresh*
 :LLrefresh              Updates all debugger signs and buffer contents.
 
-                                                        *:LLrun*
-:LLrun                  Create a process by executing the current target
-                        without waiting for LLDB to attach.
-
-                                                        *:LLcontinue*
-:LLcontinue             Continue execution of the process until the next
-                        breakpoint is hit or the process exits.
-
-                                                        *:LLstep*
-:LLstep                 Step into the current function call.
-
-                                                        *:LLstepin*
-:LLstepin               Step into the current function call.
-
-                                                        *:LLstepinst*
-:LLstepinst             Step one instruction.
-
-                                                        *:LLstepinstover*
-:LLstepinstover         Step one instruction, but skip over jump or call
-                        instructions.
-
-                                                        *:LLnext*
-:LLnext                 Step to the next line.
-
-                                                        *:LLfinish*
-:LLfinish               Step out of the current function.
-
-                                                        *:LLprint*
-                                                        *:LLpo*
-:LLprint {expr}         Aliases to the lldb print and po commands.
-:LLpo {expr}
-
-                                                        *:LLup*
-                                                        *:LLdown*
-:LLup [num]             Aliases to the lldb up and down commands.
-:LLdown [num]
-
-This list is incomplete. Most of the lldb commands are available and are
-passed through to the command interpreter.
+                                                        *:LLsession*
+:LLsession {cmd} ...    Execute a session related command.
+                        See |lldb-session-commands| for more details.
 
 MAPPINGS                                                *lldb-mappings*
 
@@ -184,11 +136,12 @@ MAPPINGS                                                *lldb-mappings*
 I recommend setting the following maps:
 >
     nmap <M-b> <Plug>LLBreakSwitch
-    nnoremap <F5> :LLrefresh<CR>
-    nnoremap <S-F5> :LLredraw<CR>
-    nnoremap <F8> :LLcontinue<CR>
-    nnoremap <F9> :LLprint <C-R>=expand('<cword>')<CR>
-    vnoremap <F9> :<C-U>LLprint <C-R>=lldb#util#get_selection()<CR>
+    nnoremap <F4> :LLmode debug<CR>
+    nnoremap <S-F4> :LLmode code<CR>
+    nnoremap <F8> :LL continue<CR>
+    nnoremap <S-F8> :LL process interrupt<CR>
+    nnoremap <F9> :LL print <C-R>=expand('<cword>')<CR>
+    vnoremap <F9> :<C-U>LL print <C-R>=lldb#util#get_selection()<CR>
 <
 
 LICENSE                                                 *lldb-license*
@@ -211,10 +164,8 @@ and post the log along with the bug report.
 
 CONTRIBUTING                                            *lldb-contributing*
 
-That'd would be great! But until version 0.9 is released, I'll be making many
+That would be great! But until version 0.9 is released, I'll be making many
 breaking changes to the plugin. You can monitor the progress in dev-branches.
-For instance, I've planned taking out most of the LL- commands and replacing
-it with a prompt, enabling execution of literally any commands, and definition
-of aliases. Therefore please wait until the plugin workflow is stabilized.
+Therefore please wait until the plugin workflow is stabilized.
 
  vim:tw=78:sw=4:ft=help:norl:
