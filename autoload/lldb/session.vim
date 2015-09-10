@@ -41,14 +41,14 @@ function! lldb#session#complete(ArgLead, CmdLine, CursorPos)
   endif
   if toknum == 2
     let subcmds = ['new', 'load']
-    call extend(subcmds, ['reload', 'show']) " FIXME only if a session exists
+    if len(lldb#remote#get_modes()) > 0
+      call extend(subcmds, ['bp-save', 'bp-set', 'reload', 'show'])
+    endif
     return s:complete_prefix(subcmds, a:ArgLead)
   endif
   let subcmd = tokens[1]
-  if toknum == 3
-    if subcmd == 'load' || subcmd == 'save'
-      return s:complete_file(a:ArgLead)
-    endif
+  if toknum == 3 && subcmd == 'load'
+    return s:complete_file(a:ArgLead)
   endif
 endfun
 

@@ -8,6 +8,13 @@ class Controller(Thread):
   """ Thread object that handles LLDB events and commands. """
 
   CTRL_VOICE = 238 # doesn't matter what this is
+  TARG_NEW = 1
+  TARG_DEL = 1 << 1
+  PROC_NEW = 1 << 2
+  PROC_DEL = 1 << 3
+  BP_CHANGED = 1 << 4
+  BAD_STATE = 1 << 5 # multiple targets
+
   def __init__(self, vimx):
     """ Creates the LLDB SBDebugger object and more! """
     from Queue import Queue
@@ -15,13 +22,14 @@ class Controller(Thread):
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
 
+    self._dbg = lldb.SBDebugger.Create()
     self._target = None
     self._process = None
+    self._num_bps = 0
+    self.interpreter = self._dbg.GetCommandInterpreter()
+
     self.in_queue = Queue()
     self.out_queue = Queue()
-
-    self.dbg = lldb.SBDebugger.Create()
-    self.interpreter = self.dbg.GetCommandInterpreter()
 
     self.listener = lldb.SBListener("the_ear")
     self.interrupter = lldb.SBBroadcaster("the_mouth")
@@ -51,7 +59,7 @@ class Controller(Thread):
         negative, and the `method` did not complete within `timeout` seconds,
         a Queue.Empty exception is raised!
     """
-    if self.dbg is None:
+    if self._dbg is None:
       self.logger.critical("Debugger was terminated!" +
           (" Attempted calling %s" % method.func_name if method else ""))
       return
@@ -93,7 +101,7 @@ class Controller(Thread):
       num = self.interpreter.HandleCompletion(line, pos, 1, -1, result)
       cands = [x for x in result]
 
-    if num > 0:
+    if len(cands) > 1:
       if cands[0] == '' and arg != '':
         if not cands[1].startswith(arg) or not cands[-1].startswith(arg):
           return []
@@ -112,41 +120,57 @@ class Controller(Thread):
     if self.is_busy():
       return
     commander = self.get_command_result
-    target = self.get_target()
     if buf is None:
-      self.buffers.update(target, commander, jump2pc)
+      self.buffers.update(self._target, commander, jump2pc)
     else:
-      self.buffers.update_buffer(buf, target, commander)
+      self.buffers.update_buffer(buf, self._target, commander)
 
-  def get_target(self):
-    """ Get the selected target. If the target is not being tracked, add our
-        listener to its broadcaster for BreakpointChanged event.
+  def get_state_changes(self):
+    """ Get a value representing target or process changes.
+        If a target or process is new, add our listener to its broadcaster.
     """
-    if self._target and self._target.IsValid():
-      return self._target
-    target = self.dbg.GetSelectedTarget()
-    if target and target.IsValid():
-      self._target = target
-      target.broadcaster.AddListener(self.listener,
-          lldb.SBTarget.eBroadcastBitBreakpointChanged)
-          # TODO WatchpointChanged
-      return target
-    return None
+    changes = 0
+    if self._dbg.GetNumTargets() > 1:
+      return self.BAD_STATE
 
-  def has_new_process(self):
-    """ Check whether a new process was created. If so, add our listener to
-        its broadcaster for BitStateChanged event.
-    """
-    if self._process and self._process.IsValid():
-      return False
-    target = self.get_target()
-    if target and target.process and target.process.IsValid():
-      self._process = target.process
-      self._process.broadcaster.AddListener(self.listener,
-          lldb.SBProcess.eBroadcastBitStateChanged)
-          # TODO STDOUT, STDERR
-      return True
-    return False
+    if self._target is None or not self._target.IsValid():
+      target = self._dbg.GetSelectedTarget()
+      if target.IsValid():
+        changes = self.TARG_NEW
+        self._target = target
+      elif self._target is not None:
+        changes = self.TARG_DEL
+        self._target = None
+
+    if self._target is None:
+      if self._process is not None:
+        changes |= self.PROC_DEL
+        self._process = None
+      if self._num_bps > 0:
+        changes |= self.BP_CHANGED
+        self._num_bps = 0
+      return changes
+
+    if self._process is None or not self._process.IsValid():
+      process = self._target.process
+      if process.IsValid():
+        changes |= self.PROC_NEW
+        self._process = process
+        process.broadcaster.AddListener(self.listener,
+            lldb.SBProcess.eBroadcastBitStateChanged)
+            # TODO STDOUT, STDERR
+      elif self._process is not None:
+        changes |= self.PROC_DEL
+        self._process = None
+
+    num_bps = self._target.GetNumBreakpoints()
+    if self._num_bps != num_bps:
+      # TODO what if one was added and another deleted?
+      changes |= self.BP_CHANGED
+      self._num_bps = num_bps
+    # TODO Watchpoints
+
+    return changes
 
   def do_disassemble(self, cmd):
     """ Change the `disassembly` buffer command and update it. """
@@ -176,16 +200,23 @@ class Controller(Thread):
 
   def exec_command(self, command, show_result=True):
     """ Runs command in the interpreter, calls update_buffers, and possibly
-        display the result as a vim message. Returns True if succeeded. """
+        display the result as a vim message. Returns True if succeeded.
+    """
+    self.session.new_command(command)
     (success, output) = self.get_command_result(command)
     if not success:
       self.vimx.log(output)
     elif show_result and len(output) > 0:
       self.vimx.log(output, 0)
 
-    if self.has_new_process():
-      pass # TODO
-    self.update_buffers()
+    state_changes = self.get_state_changes()
+    if state_changes & self.TARG_NEW != 0:
+      self.session.new_target(self._target)
+    elif state_changes & self.BP_CHANGED != 0 and self._target is not None:
+      self.session.bp_changed(self._target.breakpoint_iter())
+
+    if state_changes != 0:
+      self.update_buffers()
     return success
 
   def run(self):
@@ -218,8 +249,6 @@ class Controller(Thread):
             self.logger.info('Empty interrupt!')
           except Exception:
             self.logger.critical(traceback.format_exc())
-        elif event_matches(self._target.broadcaster):
-          self.update_buffers(buf='breakpoints')
         elif event_matches(self._process.broadcaster):
           self.update_buffers()
       else: # Timed out
@@ -227,6 +256,6 @@ class Controller(Thread):
         if to_count > 172800: # 60 days worth idleness! barrier to prevent infinite loop
           self.logger.critical('Broke the loop barrier!')
           break
-    self.dbg.Terminate()
-    self.dbg = None
+    self._dbg.Terminate()
+    self._dbg = None
     self.logger.info('Terminated!')
