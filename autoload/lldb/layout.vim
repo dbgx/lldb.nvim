@@ -5,6 +5,7 @@ function! lldb#layout#init_buffers()
   let u_bnr = bufnr('%')
   for bname in s:buffers
     let bnr = bufnr('[lldb]' . bname, 1)
+    call setbufvar(bnr, '&ft', 'lldb')
     call setbufvar(bnr, '&bt', 'nofile')
     call setbufvar(bnr, '&swf', 0)
     call setbufvar(bnr, '&ma', 0)
@@ -42,6 +43,7 @@ function! lldb#layout#setup(mode)
   exe 'belowright sb ' . s:buffer_map['locals']
   wincmd h
   exe 'belowright ' . winh2/2 . 'sp +b' . s:buffer_map['logs']
+  set cole=2 cocu=nc
   exe bufwinnr(code_buf) . "wincmd w"
 endfun
 
