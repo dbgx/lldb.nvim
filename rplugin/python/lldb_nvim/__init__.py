@@ -31,7 +31,7 @@ class Middleman(object):
   def _exec(self, *args):
     if args[0] == 'disassemble':
       self.ctrl.safe_call(self.ctrl.do_disassemble, [' '.join(args)])
-      self.ctrl.vimx.command('drop disassembly')
+      self.ctrl.vimx.command('drop [lldb]disassembly')
     else:
       self.ctrl.safe_execute(args)
 

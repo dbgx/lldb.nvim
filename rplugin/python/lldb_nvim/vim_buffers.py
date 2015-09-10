@@ -11,12 +11,12 @@ from .content_helper import *
 
 class VimBuffers:
   _content_map = {
-      "backtrace": ( "command", "bt" ),
-      "breakpoints": ( "command", "breakpoint list" ),
-      "disassembly": ( "command", "disassemble -c 20 -p" ),
-      "threads": ( "command", "thread list" ),
-      "locals": ( "cb_on_target", get_locals_content ),
-      "registers": ( "cb_on_target", get_registers_content ),
+      "backtrace": [ "command", "bt" ],
+      "breakpoints": [ "command", "breakpoint list" ],
+      "disassembly": [ "command", "disassemble -c 20 -p" ],
+      "threads": [ "command", "thread list" ],
+      "locals": [ "cb_on_target", get_locals_content ],
+      "registers": [ "cb_on_target", get_registers_content ],
   }
 
   def __init__(self, vimx):
