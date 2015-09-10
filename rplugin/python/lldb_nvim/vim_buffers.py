@@ -85,14 +85,14 @@ class VimBuffers:
           sign.hide()
       return
 
-    needed_bps = {}
+    needed_bps = set()
     for bp in target.breakpoint_iter():
       bplocs = get_bploc_tuples(bp)
-      for (is_resolved, filepath, line) in bplocs:
+      for (filepath, line) in bplocs:
         if filepath and os.path.exists(filepath):
           bufnr = self.vimx.buffer_add(filepath)
           key = (bufnr, line)
-          needed_bps[key] = is_resolved
+          needed_bps.add(key)
           if self.bp_list.has_key(key):
             self.bp_list[key].append(bp)
           else:
@@ -102,17 +102,17 @@ class VimBuffers:
     new_bps = needed_bps
     bp_signs = self.bp_signs.copy()
     for (key, sign) in bp_signs.items():
-      if hard_update or not new_bps.has_key(key) or sign.resolved != new_bps[key]:
+      if hard_update or key not in new_bps:
         sign.hide()
         del self.bp_signs[key]
       else:
         if bp_signs[key].hidden:
           bp_signs[key].show()
-        del new_bps[key]
+        new_bps.discard(key)
 
     # Show all (new) breakpoint signs
-    for ((bufnr, line), resolved) in new_bps.items():
-      self.bp_signs[(bufnr, line)] = BreakpointSign(self.vimx, bufnr, line, resolved,
+    for (bufnr, line) in new_bps:
+      self.bp_signs[(bufnr, line)] = BreakpointSign(self.vimx, bufnr, line,
                                                     self.pc_signs.has_key((bufnr, line)))
 
   def update_buffer(self, buf, target, commander):

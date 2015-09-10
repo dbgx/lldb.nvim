@@ -2,8 +2,7 @@
 # Classes responsible for drawing signs in the Vim user interface.
 
 class VimSign(object):
-  SIGN_BREAKPOINT_RESOLVED = "llsign_bpres"
-  SIGN_BREAKPOINT_UNRESOLVED = "llsign_bpunres"
+  SIGN_BREAKPOINT = "llsign_bpres"
   SIGN_PC_SELECTED = "llsign_pcsel"
   SIGN_PC_UNSELECTED = "llsign_pcunsel"
 
@@ -31,9 +30,8 @@ class VimSign(object):
     self.hidden = True
 
 class BreakpointSign(VimSign):
-  def __init__(self, vimx, bufnr, line, resolved, hidden=False):
-    self.resolved = resolved
-    name = VimSign.SIGN_BREAKPOINT_RESOLVED if resolved else VimSign.SIGN_BREAKPOINT_UNRESOLVED
+  def __init__(self, vimx, bufnr, line, hidden=False):
+    name = VimSign.SIGN_BREAKPOINT
     super(BreakpointSign, self).__init__(vimx, name, bufnr, line, hidden)
 
 class PCSign(VimSign):

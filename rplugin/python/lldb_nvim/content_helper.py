@@ -20,17 +20,14 @@ def get_pc_source_loc(thread):
 
 
 def get_bploc_tuples(bp):
-  """ Returns a list of tuples (resolved, filename, line) where a breakpoint was resolved. """
+  """ Returns a list of tuples (filename, line) where a breakpoint was resolved. """
   if not bp.IsValid():
     return []
   locs = []
   for bploc in bp:
-    resolved = bploc.IsResolved()
-
-    le_tupl = resolve_line_entry(bploc.GetAddress().GetLineEntry())
-    tupl = (resolved,) + le_tupl[:-1]
-
-    locs.append(tupl)
+    if bploc.IsResolved():
+      le_tupl = resolve_line_entry(bploc.GetAddress().GetLineEntry())
+      locs.append(le_tupl[:-1])
   return locs
 
 def get_process_stat(target):
