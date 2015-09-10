@@ -75,6 +75,11 @@ class VimBuffers:
       if is_selected and jump2pc:
         self.vimx.sign_jump(bufnr, sign.id)
 
+
+  def logs_append(self, lines):
+    self.buf_map_check()
+    self.vimx.update_noma_buffer(self.buf_map['logs'], lines, append=True)
+
   def update_breakpoints(self, target, hard_update=False):
     """ Decorates buffer with signs corresponding to breakpoints in target. """
 
@@ -118,7 +123,7 @@ class VimBuffers:
   def update_buffer(self, buf, target, commander):
     self.buf_map_check()
 
-    content = VimBuffers._content_map[buf]
+    content = self._content_map[buf]
     if content[0] == 'command':
       proc_stat = get_process_stat(target)[1]
       success, output = commander(content[1])
@@ -137,7 +142,7 @@ class VimBuffers:
     """ Updates signs, buffers, and possibly jumps to pc. """
     self.update_pc(target, jump2pc)
 
-    for buf in VimBuffers._content_map.keys():
+    for buf in self._content_map.keys():
       self.update_buffer(buf, target, commander)
 
 # vim:et:ts=2:sw=2

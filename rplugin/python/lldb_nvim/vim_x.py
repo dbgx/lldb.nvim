@@ -97,17 +97,23 @@ class VimX:
     buf_map = self.call('lldb#layout#init_buffers')
     return buf_map
 
-  def update_noma_buffer(self, bufnr, content): # buffer which are internally controlled
+  def update_noma_buffer(self, bufnr, content, append=False): # noma => nomodifiable
 
     def update_mapper(b):
       if b.number == bufnr:
         b.options['ma'] = True
-        b[:] = content
+        if append:
+          b[-1] += content[0]
+          b[:] += content[1:]
+          # TODO change cursor pos?
+        else:
+          b[:] = content
         b.options['ma'] = False
         raise StopIteration
 
     has_mod = True
-    if bufnr in self.buffer_cache and content.len() == self.buffer_cache[bufnr].len():
+    if  not append and bufnr in self.buffer_cache and \
+        content.len() == self.buffer_cache[bufnr].len():
       has_mod = False
       for i in range(0, content.len()):
         if content[i] != self.buffer_cache[bufnr][i]:

@@ -157,7 +157,9 @@ class Controller(Thread):
         changes |= self.PROC_NEW
         self._process = process
         process.broadcaster.AddListener(self.listener,
-            lldb.SBProcess.eBroadcastBitStateChanged)
+            lldb.SBProcess.eBroadcastBitStateChanged | \
+            lldb.SBProcess.eBroadcastBitSTDOUT | \
+            lldb.SBProcess.eBroadcastBitSTDERR)
             # TODO STDOUT, STDERR
       elif self._process is not None:
         changes |= self.PROC_DEL
@@ -204,10 +206,11 @@ class Controller(Thread):
     """
     self.session.new_command(command)
     (success, output) = self.get_command_result(command)
+    lines = output.split('\n')
     if not success:
-      self.vimx.log(output)
+      self.buffers.logs_append([u'\u2717' + line for line in lines[:-1]] + lines[-1:])
     elif show_result and len(output) > 0:
-      self.vimx.log(output, 0)
+      self.buffers.logs_append([u'\u2713' + line for line in lines[:-1]] + lines[-1:])
 
     state_changes = self.get_state_changes()
     if state_changes & self.TARG_NEW != 0:
@@ -250,6 +253,14 @@ class Controller(Thread):
           except Exception:
             self.logger.critical(traceback.format_exc())
         elif event_matches(self._process.broadcaster):
+          while True:
+            # FIXME break out of infinite loops (buggy programs may hang Vim!)
+            stdout = self._process.GetSTDOUT(256)
+            # TODO stderr
+            if len(stdout) == 0:
+              break
+            lines = stdout.split('\r\n') # FIXME is this correct?
+            self.buffers.logs_append(lines)
           self.update_buffers()
       else: # Timed out
         to_count += 1
