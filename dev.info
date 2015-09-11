@@ -1,0 +1,21 @@
+Add a test script
+Suggest to bind `:LL `
+
+Check whether attached process does not print stdout in logs buffer.
+Enable user to check the name of current mode?
+Option to clear half of logs buffer
+Customizable log-levels:
+  debug: print each command too
+  info: print all command output
+  priority: print only process stdout/err, and command errors
+
+TODOs:
+  enter key in backtrace buffer
+  store custom locals rules for different scopes/frames:
+    `frame variable` customization usign SelectedFrame.GetFunctionName()
+  plus/minus key in locals buffer (filters) (no need of display?)
+  w key in locals buffer (watchpoint)
+  watchpoints buffer
+
+Removed features:
+  tracking changes of locals and registers

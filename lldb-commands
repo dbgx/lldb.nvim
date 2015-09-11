@@ -1,0 +1,46 @@
+# to be tested
+target {modules|select|stop-hook|symbols}
+platform
+plugin
+source
+settings
+type
+log
+gdb-remote
+kdp-remote
+script
+memory
+env
+jump
+list
+display
+undisplay
+
+# support multiple targets?
+
+# commands with bulk output
+frame variable
+target variable
+watchpoint list
+apropos
+help
+register read
+source list
+settings list
+type {cmd} list
+breakpoint list
+thread list
+log list   # ??
+command history
+
+# unimportant {{{
+# scope for improvement?
+expression
+print
+po
+
+# not applicable
+run   # ??
+gui
+quit
+exit

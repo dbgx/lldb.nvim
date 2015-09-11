@@ -59,3 +59,14 @@ elseif name == 'registers'
 elseif name == 'disassembly'
   set syntax=asm
 endif
+
+"¹ 1S
+"² 2S
+"✠ -X
+"‡ /=
+"※ :X
+"→ ->
+"⇒ =>
+"✗ XX
+"✓ OK
+"♀ Fm
