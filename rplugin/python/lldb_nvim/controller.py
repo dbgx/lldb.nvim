@@ -190,6 +190,13 @@ class Controller(Thread):
       args = "set -f %s -l %d" % (path, line)
     self.exec_command("breakpoint " + args)
 
+  def put_stdin(self, instr):
+    """ Call PutSTDIN() of process with instr. """
+    if self._process is not None:
+      self._process.PutSTDIN(instr)
+    else:
+      self.vimx.log('No active process!')
+
   def get_command_result(self, command):
     """ Runs command in the interpreter and returns (success, output)
         Not to be called directly for commands which changes debugger state;
@@ -200,16 +207,16 @@ class Controller(Thread):
     self.interpreter.HandleCommand(command.encode('ascii', 'ignore'), result)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
-  def exec_command(self, command, show_result=True):
-    """ Runs command in the interpreter, calls update_buffers, and possibly
-        display the result as a vim message. Returns True if succeeded.
+  def exec_command(self, command):
+    """ Runs command in the interpreter, calls update_buffers, and display the
+        result in the logs buffer. Returns True if succeeded.
     """
     self.session.new_command(command)
     (success, output) = self.get_command_result(command)
     lines = output.split('\n')
     if not success:
       self.buffers.logs_append([u'\u2717' + line for line in lines[:-1]] + lines[-1:])
-    elif show_result and len(output) > 0:
+    elif len(output) > 0:
       self.buffers.logs_append([u'\u2713' + line for line in lines[:-1]] + lines[-1:])
 
     state_changes = self.get_state_changes()
@@ -259,7 +266,7 @@ class Controller(Thread):
             # TODO stderr
             if len(stdout) == 0:
               break
-            lines = stdout.split('\r\n') # FIXME is this correct?
+            lines = stdout.replace('\r\n', '\n').split('\n')
             self.buffers.logs_append(lines)
           self.update_buffers()
       else: # Timed out

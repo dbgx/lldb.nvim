@@ -35,6 +35,10 @@ class Middleman(object):
     else:
       self.ctrl.safe_execute(args)
 
+  @neovim.rpc_export('stdin')
+  def _stdin(self, strin):
+    self.ctrl.safe_call(self.ctrl.put_stdin, [strin])
+
   @neovim.rpc_export('exit')
   def _exit(self):
     self.ctrl.safe_exit()

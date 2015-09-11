@@ -9,11 +9,6 @@ endfun
 function! lldb#remote#init(chan_id)
   let g:lldb#_channel_id = a:chan_id
   au VimLeavePre * call <SID>llnotify('exit')
-
-  " each key maps to [nargs, complete]; default: ['0', <s:llcomplete>]
-  let s:cmd_map = { 'refresh':   [],
-                  \ 'mode':      ['1', 'customlist,lldb#session#complete']
-                  \ }
   call lldb#remote#define_commands()
 endfun
 
@@ -22,30 +17,45 @@ function! s:llcomplete(arg, line, pos)
   return rpcrequest(g:lldb#_channel_id, 'complete', a:arg, a:line[p : ], a:pos - p)
 endfun
 
+let s:ctrlchars = { 'BS': "\b",
+                  \ 'CR': "\r",
+                  \ 'EOT': "\x04",
+                  \ 'LF': "\n",
+                  \ 'NUL': "\0",
+                  \ 'SPACE': " " }
+function! s:stdinctrl(A, L, P)
+  return keys(s:ctrlchars) + [ '--raw' ]
+endfun
+
+function! s:stdin(arg)
+  if len(a:arg) > 0
+    if has_key(s:ctrlchars, a:arg)
+      return s:ctrlchars[a:arg]
+    elseif a:arg == '--raw'
+      return input('raw> ')
+    else
+      return input("Invalid input!\nraw> ")
+    endif
+  else
+    return input('line> ') . "\n"
+  endif
+endfun
+
 function! lldb#remote#get_modes()
   return rpcrequest(g:lldb#_channel_id, 'get_modes')
 endfun
 
 function! lldb#remote#define_commands()
-  for [cmd, props] in items(s:cmd_map)
-    let nargs = len(props) ? props[0] : '0'
-    let copts = ''
-    if nargs != '0'
-      let copts = ' -nargs='.nargs
-      if len(props) > 1
-        let copts .= ' -complete=' . props[1]
-      endif
-    endif
-    exe 'command!' . copts . ' LL' . cmd . ' call <SID>llnotify("'. cmd . '", <f-args>)'
-  endfor
-  command! -nargs=* -complete=customlist,<SID>llcomplete LL call <SID>llnotify("exec", <f-args>)
+  command!  LLrefresh   call <SID>llnotify("refresh")
+  command!      -nargs=1    -complete=customlist,lldb#session#complete
+          \ LLmode      call <SID>llnotify("mode", <f-args>)
+  command!      -nargs=*    -complete=customlist,<SID>llcomplete
+          \ LL          call <SID>llnotify("exec", <f-args>)
+  command!      -nargs=?    -complete=customlist,<SID>stdinctrl
+          \ LLstdin     call <SID>llnotify("stdin", <SID>stdin(<q-args>))
+
   nnoremap <silent> <Plug>LLBreakSwitch
           \ :call <SID>llnotify("breakswitch", bufnr("%"), getcurpos()[1])<CR>
-endfun
-
-function! lldb#remote#undefine_commands()
-  for cmd in keys(s:cmd_map)
-    exe 'delcommand LL' . cmd
-  endfor
-  nunmap <Plug>LLBreakSwitch
+  vnoremap <silent> <Plug>LLStdInSelected
+          \ :<C-U>call <SID>llnotify("stdin", lldb#util#get_selection())<CR>
 endfun
