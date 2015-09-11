@@ -9,6 +9,7 @@ endfun
 function! lldb#remote#init(chan_id)
   let g:lldb#_channel_id = a:chan_id
   au VimLeavePre * call <SID>llnotify('exit')
+  au TextChanged \[lldb\]logs norm! G
   call lldb#remote#define_commands()
 endfun
 

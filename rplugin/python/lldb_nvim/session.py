@@ -16,7 +16,7 @@ class Session:
     self.help_flags = { "new": False,
                         "launch_prompt": True,
                         "session_show": True }
-    self.command_hist = deque(maxlen=20)
+    self.command_hist = deque(maxlen=4)
     self.bp_cmd_map = {}
 
 

@@ -197,14 +197,14 @@ class Controller(Thread):
     else:
       self.vimx.log('No active process!')
 
-  def get_command_result(self, command):
+  def get_command_result(self, command, add2hist=False):
     """ Runs command in the interpreter and returns (success, output)
         Not to be called directly for commands which changes debugger state;
         use exec_command instead.
     """
     result = lldb.SBCommandReturnObject()
 
-    self.interpreter.HandleCommand(command.encode('ascii', 'ignore'), result)
+    self.interpreter.HandleCommand(command.encode('ascii', 'ignore'), result, add2hist)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
   def exec_command(self, command):
@@ -212,7 +212,7 @@ class Controller(Thread):
         result in the logs buffer. Returns True if succeeded.
     """
     self.session.new_command(command)
-    (success, output) = self.get_command_result(command)
+    (success, output) = self.get_command_result(command, True)
     lines = output.split('\n')
     if not success:
       self.buffers.logs_append([u'\u2717' + line for line in lines[:-1]] + lines[-1:])
