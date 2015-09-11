@@ -2,16 +2,21 @@
 
 This plugin provides LLDB debugger integration for Neovim, featuring:
 
-* Breakpoints and program counter displayed as signs
-* Buffers showing backtrace, breakpoints, threads, local variables, registers and disassembly
-* Supports almost all LLDB commands from vim-command line (with tab-completion)
-* Event-based UI updates
-* Non-blocking UI
-* Customizable Layout
+* Buffers showing debugger state: backtrace, breakpoints etc.
+* Event-based, non-blocking UI
+* Breakpoints persistence across exits
+* Modal approach: define modes and replay commands during mode-switches
+* Tab-completion for LLDB commands
 
-**NOTE** : This is a fork of https://github.com/gilligan/vim-lldb/, which is a fork of
-the plugin that is part of the llvm distribution. The original can be found at
-http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/
+This plugin started out as a fork of https://github.com/gilligan/vim-lldb
+which was forked from http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/
+
+A lot of refactoring, performance improvements, and many new features were
+added which would have been very hard (if not impossible) to implement as a
+standard Vim plugin.
+
+This plugin takes advantage of Neovim's job API to spawn a separate process
+and communicates with the Neovim process using RPC calls.
 
 ## Prerequisites
 
@@ -45,12 +50,12 @@ The plugin is being developed keeping 3 broad goals in mind:
     * Visual layout or window management
     * Key-bindings
 
-As of 0.3 release, none of these goals are met.
+As of 0.7 release, I believe **Completeness** has been almost achieved, and a glimpse of the rest is in view.
 
 ## Getting started
 
-Watch a [demo video](https://youtu.be/aXSNhTH1Co4), or refer to the getting
-started section in the vim-docs (`:h lldb-start`).
+A demo screencast will be posted soon, until then please refer to the getting started section in the vim-docs (`:h lldb-start`).
+For easy navigation of vim documentaion, I suggest using [viewdoc plugin](https://github.com/powerman/vim-plugin-viewdoc) by powerman.
 
 ## General Discussion
 
@@ -62,7 +67,6 @@ started section in the vim-docs (`:h lldb-start`).
 
 Have you tried `:UpdateRemotePlugins` and restarting Neovim? If you did, and
 the problem persists, please file a bug report (also see `:help lldb-bugs`).
-(I forget this all the time!)
 
 #### How do I attach to a running process?
 
@@ -78,6 +82,9 @@ to work properly with the python API. But the following works; run:
 ```
 # use sudo if you want to attach to a running process
 $ lldb-server platform --listen localhost:2345
+
+# in older versions of lldb, use this instead
+$ lldb-platform --listen localhost:2345
 ```
 
 The above command will start the server in platform mode and listen for connections
