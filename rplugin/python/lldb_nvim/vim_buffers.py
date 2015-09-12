@@ -11,12 +11,12 @@ from .content_helper import *
 
 class VimBuffers:
   _content_map = {
-      "backtrace": ( "command", "bt" ),
-      "breakpoints": ( "command", "breakpoint list" ),
-      "disassembly": ( "command", "disassemble -c 20 -p" ),
-      "threads": ( "command", "thread list" ),
-      "locals": ( "cb_on_target", get_locals_content ),
-      "registers": ( "cb_on_target", get_registers_content ),
+      "backtrace": [ "command", "bt" ],
+      "breakpoints": [ "command", "breakpoint list" ],
+      "disassembly": [ "command", "disassemble -c 20 -p" ],
+      "threads": [ "command", "thread list" ],
+      "locals": [ "cb_on_target", get_locals_content ],
+      "registers": [ "cb_on_target", get_registers_content ],
   }
 
   def __init__(self, vimx):
@@ -75,6 +75,21 @@ class VimBuffers:
       if is_selected and jump2pc:
         self.vimx.sign_jump(bufnr, sign.id)
 
+  def logs_append(self, outstr, prefix=None):
+    """ Returns the number lines appended """
+    self.buf_map_check()
+
+    if len(outstr) == 0:
+      return 0
+    lines = outstr.replace('\r\n', '\n').split('\n')
+    if prefix is not None:
+      last_line = lines[-1]
+      if len(last_line) > 0:
+        last_line = prefix + last_line
+      lines = [prefix + line for line in lines[:-1]] + [ last_line ]
+    self.vimx.update_noma_buffer(self.buf_map['logs'], lines, append=True)
+    return len(lines) - 1
+
   def update_breakpoints(self, target, hard_update=False):
     """ Decorates buffer with signs corresponding to breakpoints in target. """
 
@@ -118,7 +133,7 @@ class VimBuffers:
   def update_buffer(self, buf, target, commander):
     self.buf_map_check()
 
-    content = VimBuffers._content_map[buf]
+    content = self._content_map[buf]
     if content[0] == 'command':
       proc_stat = get_process_stat(target)[1]
       success, output = commander(content[1])
@@ -137,7 +152,7 @@ class VimBuffers:
     """ Updates signs, buffers, and possibly jumps to pc. """
     self.update_pc(target, jump2pc)
 
-    for buf in VimBuffers._content_map.keys():
+    for buf in self._content_map.keys():
       self.update_buffer(buf, target, commander)
 
 # vim:et:ts=2:sw=2

@@ -1,6 +1,5 @@
 def resolve_line_entry(le):
-  # path = os.path.join(le.GetFileSpec().GetDirectory(), le.GetFileSpec().GetFilename())
-  return (le.GetFileSpec().fullpath, le.GetLine(), le.GetColumn())
+  return (le.file.fullpath, le.line, le.column)
 
 def get_pc_source_loc(thread):
   """ Returns a tuple (thread_index, file, line, column) that represents where
@@ -12,7 +11,7 @@ def get_pc_source_loc(thread):
   le = frame.GetLineEntry()
   while not le.IsValid() and frame_num < thread.GetNumFrames():
     frame_num += 1
-    le = thread.GetFrameAtIndex(frame_num).GetLineEntry()
+    le = thread.GetFrameAtIndex(frame_num).line_entry
 
   if le.IsValid():
     return (thread.GetIndexID(),) + resolve_line_entry(le)
@@ -25,9 +24,9 @@ def get_bploc_tuples(bp):
     return []
   locs = []
   for bploc in bp:
-    if bploc.IsResolved():
-      le_tupl = resolve_line_entry(bploc.GetAddress().GetLineEntry())
-      locs.append(le_tupl[:-1])
+    le_tupl = resolve_line_entry(bploc.GetAddress().line_entry)
+    if le_tupl[0] and le_tupl[1] > 0: # le_tupl[0] might be None
+      locs.append(le_tupl[:2])
   return locs
 
 def get_process_stat(target):

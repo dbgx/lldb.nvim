@@ -157,8 +157,13 @@ class Controller(Thread):
         changes |= self.PROC_NEW
         self._process = process
         process.broadcaster.AddListener(self.listener,
-            lldb.SBProcess.eBroadcastBitStateChanged)
-            # TODO STDOUT, STDERR
+            lldb.SBProcess.eBroadcastBitStateChanged | \
+            lldb.SBProcess.eBroadcastBitSTDOUT | \
+            lldb.SBProcess.eBroadcastBitSTDERR)
+        self._proc_cur_line_len = 0
+        self._proc_lines_count = 0
+        self._proc_sigstop_count = 0
+
       elif self._process is not None:
         changes |= self.PROC_DEL
         self._process = None
@@ -188,26 +193,34 @@ class Controller(Thread):
       args = "set -f %s -l %d" % (path, line)
     self.exec_command("breakpoint " + args)
 
-  def get_command_result(self, command):
+  def put_stdin(self, instr):
+    """ Call PutSTDIN() of process with instr. """
+    if self._process is not None:
+      self._process.PutSTDIN(instr)
+    else:
+      self.vimx.log('No active process!')
+
+  def get_command_result(self, command, add2hist=False):
     """ Runs command in the interpreter and returns (success, output)
         Not to be called directly for commands which changes debugger state;
         use exec_command instead.
     """
     result = lldb.SBCommandReturnObject()
 
-    self.interpreter.HandleCommand(command.encode('ascii', 'ignore'), result)
+    self.interpreter.HandleCommand(command.encode('ascii', 'ignore'), result, add2hist)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
-  def exec_command(self, command, show_result=True):
-    """ Runs command in the interpreter, calls update_buffers, and possibly
-        display the result as a vim message. Returns True if succeeded.
+  def exec_command(self, command):
+    """ Runs command in the interpreter, calls update_buffers, and display the
+        result in the logs buffer. Returns True if succeeded.
     """
+    self.buffers.logs_append(u'\u2192(lldb) %s\n' % command)
     self.session.new_command(command)
-    (success, output) = self.get_command_result(command)
+    (success, output) = self.get_command_result(command, True)
     if not success:
-      self.vimx.log(output)
-    elif show_result and len(output) > 0:
-      self.vimx.log(output, 0)
+      self.buffers.logs_append(output, u'\u2717')
+    elif len(output) > 0:
+      self.buffers.logs_append(output, u'\u2713')
 
     state_changes = self.get_state_changes()
     if state_changes & self.TARG_NEW != 0:
@@ -215,8 +228,7 @@ class Controller(Thread):
     elif state_changes & self.BP_CHANGED != 0 and self._target is not None:
       self.session.bp_changed(self._target.breakpoint_iter())
 
-    if state_changes != 0:
-      self.update_buffers()
+    self.update_buffers()
     return success
 
   def run(self):
@@ -250,6 +262,29 @@ class Controller(Thread):
           except Exception:
             self.logger.critical(traceback.format_exc())
         elif event_matches(self._process.broadcaster):
+          while True:
+            out = self._process.GetSTDOUT(256)
+            out += self._process.GetSTDERR(256)
+            if len(out) == 0:
+              break
+            n_lines = self.buffers.logs_append(out)
+            if n_lines == 0:
+              self._proc_cur_line_len += len(out)
+            else:
+              self._proc_cur_line_len = 0
+              self._proc_lines_count += n_lines
+            if self._proc_cur_line_len > 8192 or self._proc_lines_count > 2048:
+              # detect and stop/kill insane process
+              if self._process.state == lldb.eStateStopped:
+                pass
+              elif self._proc_sigstop_count > 7:
+                self._process.Kill()
+                self.buffers.logs_append(u'\u2717SIGSTOP limit exceeded! Sent SIGKILL!\n')
+              else:
+                self._process.SendAsyncInterrupt()
+                self._proc_sigstop_count += 1
+                self.buffers.logs_append(u'\u2717Output limits exceeded! Sent SIGSTOP!\n')
+              break
           self.update_buffers()
       else: # Timed out
         to_count += 1
