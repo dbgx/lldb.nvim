@@ -11,10 +11,10 @@ from .content_helper import *
 
 class VimBuffers:
   _content_map = {
-      "backtrace": ( "command", ["bt", ""] ),
-      "breakpoints": ( "command", ["breakpoint", "list"] ),
-      "disassembly": ( "command", ["disassemble", "-c 20 -p"] ),
-      "threads": ( "command", ["thread", "list"] ),
+      "backtrace": ( "command", "bt" ),
+      "breakpoints": ( "command", "breakpoint list" ),
+      "disassembly": ( "command", "disassemble -c 20 -p" ),
+      "threads": ( "command", "thread list" ),
       "locals": ( "cb_on_target", get_locals_content ),
       "registers": ( "cb_on_target", get_registers_content ),
   }
@@ -35,7 +35,7 @@ class VimBuffers:
 
   def buf_map_check(self):
     if not self.buf_map:
-      self.buf_map = self.vimx.buf_init()
+      self.buf_map = self.vimx.init_buffers()
 
   def update_pc(self, target, jump2pc):
     """ Place the PC sign on the PC location of each thread's selected frame.
@@ -85,15 +85,14 @@ class VimBuffers:
           sign.hide()
       return
 
-    needed_bps = {}
-    for bp_index in range(target.GetNumBreakpoints()):
-      bp = target.GetBreakpointAtIndex(bp_index)
-      bplocs = get_bploc_tuples(bp, self.vimx.log)
-      for (is_resolved, filepath, line) in bplocs:
+    needed_bps = set()
+    for bp in target.breakpoint_iter():
+      bplocs = get_bploc_tuples(bp)
+      for (filepath, line) in bplocs:
         if filepath and os.path.exists(filepath):
           bufnr = self.vimx.buffer_add(filepath)
           key = (bufnr, line)
-          needed_bps[key] = is_resolved
+          needed_bps.add(key)
           if self.bp_list.has_key(key):
             self.bp_list[key].append(bp)
           else:
@@ -103,17 +102,17 @@ class VimBuffers:
     new_bps = needed_bps
     bp_signs = self.bp_signs.copy()
     for (key, sign) in bp_signs.items():
-      if hard_update or not new_bps.has_key(key) or sign.resolved != new_bps[key]:
+      if hard_update or key not in new_bps:
         sign.hide()
         del self.bp_signs[key]
       else:
         if bp_signs[key].hidden:
           bp_signs[key].show()
-        del new_bps[key]
+        new_bps.discard(key)
 
     # Show all (new) breakpoint signs
-    for ((bufnr, line), resolved) in new_bps.items():
-      self.bp_signs[(bufnr, line)] = BreakpointSign(self.vimx, bufnr, line, resolved,
+    for (bufnr, line) in new_bps:
+      self.bp_signs[(bufnr, line)] = BreakpointSign(self.vimx, bufnr, line,
                                                     self.pc_signs.has_key((bufnr, line)))
 
   def update_buffer(self, buf, target, commander):
@@ -122,31 +121,23 @@ class VimBuffers:
     content = VimBuffers._content_map[buf]
     if content[0] == 'command':
       proc_stat = get_process_stat(target)[1]
-      success, output = commander(*content[1])
+      success, output = commander(content[1])
       if not success and proc_stat:
         output = proc_stat
       results = output.split('\n')
-      if buf == 'breakpoints':
-        self.update_breakpoints(target)
     elif content[0] == 'cb_on_target':
       results = content[1](target)
-    bufnr = self.buf_map[buf]
 
-    def update_mapper(b):
-      if b.number == bufnr:
-        b.options['ma'] = True
-        b[:] = results
-        b.options['ma'] = False
-        raise StopIteration
+    if buf == 'breakpoints':
+      self.update_breakpoints(target)
 
-    self.vimx.map_buffers(update_mapper)
+    self.vimx.update_noma_buffer(self.buf_map[buf], results)
 
-  def update(self, target, commander, jump2pc=False, exclude_buf=[]):
+  def update(self, target, commander, jump2pc=False):
     """ Updates signs, buffers, and possibly jumps to pc. """
     self.update_pc(target, jump2pc)
 
     for buf in VimBuffers._content_map.keys():
-      if buf not in exclude_buf:
-        self.update_buffer(buf, target, commander)
+      self.update_buffer(buf, target, commander)
 
 # vim:et:ts=2:sw=2

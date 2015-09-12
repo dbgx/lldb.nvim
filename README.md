@@ -15,7 +15,8 @@ http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/
 
 ## Prerequisites
 
-* [Neovim](https://github.com/neovim/neovim) with [python support](https://github.com/neovim/python-client).
+* [Neovim](https://github.com/neovim/neovim)
+* [Neovim python2-client](https://github.com/neovim/python-client) (release >= 0.0.38)
 * [LLDB](http://lldb.llvm.org/)
 
 ## Installation
@@ -24,24 +25,23 @@ Installation is easiest using a plugin manager such as [vim-plug](https://github
 ```
     Plug "critiqjo/lldb.nvim"
 ```
-Or you can manually copy the files to your `~/.nvimrc` folder if you prefer that for some reason.
+Or manually copy the files to your `~/.nvimrc` folder.
 
 Note: After installing (or updating) a plugin that uses Neovim's remote plugin API,
-you may have to execute:
+you (might) have to execute:
 ```
     :UpdateRemotePlugins
 ```
-which will create a manifest file (`~/.nvim/.nvimrc-rplugin~`) containing some mappings;
-then restart Neovim. This might already be taken care of by the plugin manager, but I'm not sure.
+and restart Neovim.
 
 ## Goals
 
-The plugin is developed keeping 3 broad goals in mind:
+The plugin is being developed keeping 3 broad goals in mind:
 
 * **Ease of use**: Users with almost zero knowledge of command line debuggers should feel comfortable using this plugin.
 * **Completeness**: Experienced users of LLDB should not feel restricted.
 * **Customizability**: Users should be able to bend this plugin easily in the following aspects:
-    * Display of debugger status (eg. backtrace)
+    * Display of debugger status (eg. customisable disassembly view)
     * Visual layout or window management
     * Key-bindings
 
@@ -58,8 +58,35 @@ started section in the vim-docs (`:h lldb-start`).
 
 ## FAQ
 
-### After recent the recent update, [command] stopped working!
+#### After the recent update, [command] stopped working!
 
 Have you tried `:UpdateRemotePlugins` and restarting Neovim? If you did, and
 the problem persists, please file a bug report (also see `:help lldb-bugs`).
 (I forget this all the time!)
+
+#### How do I attach to a running process?
+
+To be able to attach, the "attacher" needs to have special permissions. The
+easiest method is to run a debug server as 'sudo' and connect to it.
+See the question below.
+
+#### Remote debugging does not work!!
+
+I haven't been able to get `gdbserver`, `lldb-gdbserver` or `lldb-server gdbserver`
+to work properly with the python API. But the following works; run:
+
+```
+# use sudo if you want to attach to a running process
+$ lldb-server platform --listen localhost:2345
+```
+
+The above command will start the server in platform mode and listen for connections
+on port 2345. Now, from the client (the plugin), run:
+
+```
+(lldb) platform select remote-linux
+(lldb) platform connect connect://localhost:2345
+(lldb) process attach --name cat
+```
+
+For more info on this, see [Remote Debugging](http://lldb.llvm.org/remote.html).

@@ -19,21 +19,15 @@ def get_pc_source_loc(thread):
   return None
 
 
-def get_bploc_tuples(bp, logger):
-  """ Returns a list of tuples (resolved, filename, line) where a breakpoint was resolved. """
+def get_bploc_tuples(bp):
+  """ Returns a list of tuples (filename, line) where a breakpoint was resolved. """
   if not bp.IsValid():
-    logger("breakpoint is invalid, no locations")
     return []
   locs = []
-  numLocs = bp.GetNumLocations()
-  for i in range(numLocs):
-    bploc = bp.GetLocationAtIndex(i)
-    resolved = bploc.IsResolved()
-
-    le_tupl = resolve_line_entry(bploc.GetAddress().GetLineEntry())
-    tupl = (resolved,) + le_tupl[:-1]
-
-    locs.append(tupl)
+  for bploc in bp:
+    if bploc.IsResolved():
+      le_tupl = resolve_line_entry(bploc.GetAddress().GetLineEntry())
+      locs.append(le_tupl[:-1])
   return locs
 
 def get_process_stat(target):
@@ -53,17 +47,6 @@ def get_process_stat(target):
       proc.GetDescription(s)
       stat = '%s, exit status = %s' % (s.GetData(), proc.GetExitStatus())
   return (proc, stat)
-
-def get_command_content(args, target, commander):
-  """ Returns the output of a command might rely on the process being stopped.
-      If the process is not in 'stopped' state, return the command output
-      only if the command succeeds, otherwise the process status is returned.
-  """
-  (proc, stat) = get_process_stat(target)
-  (success, output) = commander(*args)
-  if stat != '' and not success:
-    output = stat
-  return output.split('\n')
 
 def get_selected_frame(process):
   thread = process.GetSelectedThread()

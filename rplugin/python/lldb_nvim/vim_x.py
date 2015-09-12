@@ -2,17 +2,34 @@ from Queue import Queue
 
 class VimX:
   def __init__(self, vim):
+    import logging
+    self.logger = logging.getLogger(__name__)
+    self.logger.setLevel(logging.INFO)
     self._vim = vim
+    self.buffer_cache = {}
 
-  def eval(self, expr):
+  def call(self, *args, **kwargs):
     vim = self._vim
-    out_q = Queue()
-    vim.session.threadsafe_call(lambda: out_q.put(vim.eval(expr)))
-    return out_q.get()
+    if 'async' not in kwargs or not kwargs['async']:
+      out_q = Queue()
+      vim.session.threadsafe_call(lambda:
+          out_q.put(vim.call(*args, async=False)))
+      return out_q.get()
+    else:
+      vim.session.threadsafe_call(lambda: vim.call(*args, async=True))
 
-  def command(self, cmd):
+  def eval(self, expr, async=False):
     vim = self._vim
-    vim.session.threadsafe_call(lambda: vim.command(cmd))
+    if not async:
+      out_q = Queue()
+      vim.session.threadsafe_call(lambda: out_q.put(vim.eval(expr, async=False)))
+      return out_q.get()
+    else:
+      vim.session.threadsafe_call(lambda: vim.eval(expr, async=True))
+
+  def command(self, cmd, async=True):
+    vim = self._vim
+    vim.session.threadsafe_call(lambda: vim.command(cmd, async=async))
 
   def log(self, msg, level=1):
     """ Execute echom in vim using appropriate highlighting. """
@@ -22,13 +39,13 @@ class VimX:
 
   def buffer_add(self, name):
     """ Create a buffer (if it doesn't exist) and return its number. """
-    bufnr = self.eval('bufnr("%s", 1)' % name)
-    self.command('call setbufvar(%d, "&bl", 1)' % bufnr)
+    bufnr = self.call('bufnr', name, 1)
+    self.call('setbufvar', bufnr, '&bl', 1, async=True)
     return bufnr
 
   def sign_jump(self, bufnr, sign_id):
     """ Try jumping to the specified sign_id in buffer with number bufnr. """
-    self.command("call lldb#util#signjump(%d, %d)" % (bufnr, sign_id))
+    self.call('lldb#layout#signjump', bufnr, sign_id, async=True)
 
   def sign_place(self, sign_id, name, bufnr, line):
     """ Place a sign at the specified location. """
@@ -75,7 +92,27 @@ class VimX:
         raise StopIteration(b.name)
     return self.map_buffers(name_mapper)[0]
 
-  def buf_init(self):
+  def init_buffers(self):
     """ Create all lldb buffers and initialize the buffer map. """
-    buf_map = self.eval('lldb#layout#init_buffers()')
+    buf_map = self.call('lldb#layout#init_buffers')
     return buf_map
+
+  def update_noma_buffer(self, bufnr, content): # buffer which are internally controlled
+
+    def update_mapper(b):
+      if b.number == bufnr:
+        b.options['ma'] = True
+        b[:] = content
+        b.options['ma'] = False
+        raise StopIteration
+
+    has_mod = True
+    if bufnr in self.buffer_cache and content.len() == self.buffer_cache[bufnr].len():
+      has_mod = False
+      for i in range(0, content.len()):
+        if content[i] != self.buffer_cache[bufnr][i]:
+          has_mod = True
+          break
+
+    if has_mod:
+      self.map_buffers(update_mapper)
