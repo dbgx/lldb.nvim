@@ -31,9 +31,13 @@ class Middleman(object):
   def _exec(self, *args):
     if args[0] == 'disassemble':
       self.ctrl.safe_call(self.ctrl.do_disassemble, [' '.join(args)])
-      self.ctrl.vimx.command('drop [lldb]disassembly')
+      if self.ctrl._target is not None:
+        self.ctrl.vimx.command('drop [lldb]disassembly')
     else:
       self.ctrl.safe_execute(args)
+
+    if args[0] == 'help':
+      self.ctrl.vimx.command('drop [lldb]logs')
 
   @neovim.rpc_export('stdin')
   def _stdin(self, strin):

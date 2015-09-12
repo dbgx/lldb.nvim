@@ -1,3 +1,13 @@
+function! s:logs_clear()
+  if input('Clear logs [y=yes]? ') == 'y'
+    if expand('%') == '[lldb]logs'
+      set ma
+      norm! ggdG
+      set noma
+    endif
+  endif
+endfun
+
 function! lldb#layout#init_buffers()
   let s:buffers = [ 'backtrace', 'breakpoints', 'disassembly',
                   \ 'locals', 'logs', 'registers', 'threads' ]
@@ -10,6 +20,11 @@ function! lldb#layout#init_buffers()
     call setbufvar(bnr, '&swf', 0)
     call setbufvar(bnr, '&ma', 0)
     exe 'silent b ' . bnr
+    if bname == 'logs'
+      nnoremap <buffer> i :call lldb#remote#stdin_prompt()<CR>
+      nnoremap <silent> <buffer> <nowait> d :call <SID>logs_clear()<CR>
+      nnoremap <silent> <buffer> <nowait> q :drop #<CR>
+    endif
     call setbufvar(bnr, '&nu', 0)
     call setbufvar(bnr, '&rnu', 0)
     call setbufvar(bnr, '&bl', 0)

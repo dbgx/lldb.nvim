@@ -205,7 +205,9 @@ Below are some random points that might make your debugging life easier:
 
 * Do not create multiple targets -- currently not supported
 
-* Try out `:LL command history`
+* Try these out (in debug mode): `:LL help process` `:LL command history`
+
+* While in logs buffer, try pressing `i`, `d` or `q`
 
 * LLDB completions will be relative to the parent directory of session file.
   This is because regardless of the pwd of Vim, the plugin process will always
@@ -213,12 +215,10 @@ Below are some random points that might make your debugging life easier:
 
 * Target should be deleted when exiting debugging mode, so that it can be
   re-added (after a compilation, may be) when re-entering debug mode.
-  - For compilation, I would suggest the neomake plugin by benekastah.
+  - For compiling, try using `:NeomakeSh` from neomake plugin by benekastah.
 
-* If you have an external script, I would suggest moving all breakpoint
+* If you have an external script, may I suggest moving all breakpoint
   management commands to the session file.
-
-* If logs buffer is focused, it will automatically scroll down on output.
 
 * Have a key-binding for `process interrupt` command; it will come in handy.
 
