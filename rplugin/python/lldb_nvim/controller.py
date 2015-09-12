@@ -160,7 +160,10 @@ class Controller(Thread):
             lldb.SBProcess.eBroadcastBitStateChanged | \
             lldb.SBProcess.eBroadcastBitSTDOUT | \
             lldb.SBProcess.eBroadcastBitSTDERR)
-            # TODO STDOUT, STDERR
+        self._proc_cur_line_len = 0
+        self._proc_lines_count = 0
+        self._proc_sigstop_count = 0
+
       elif self._process is not None:
         changes |= self.PROC_DEL
         self._process = None
@@ -211,13 +214,13 @@ class Controller(Thread):
     """ Runs command in the interpreter, calls update_buffers, and display the
         result in the logs buffer. Returns True if succeeded.
     """
+    self.buffers.logs_append(u'\u2192(lldb) %s\n' % command)
     self.session.new_command(command)
     (success, output) = self.get_command_result(command, True)
-    lines = output.split('\n')
     if not success:
-      self.buffers.logs_append([u'\u2717' + line for line in lines[:-1]] + lines[-1:])
+      self.buffers.logs_append(output, u'\u2717')
     elif len(output) > 0:
-      self.buffers.logs_append([u'\u2713' + line for line in lines[:-1]] + lines[-1:])
+      self.buffers.logs_append(output, u'\u2713')
 
     state_changes = self.get_state_changes()
     if state_changes & self.TARG_NEW != 0:
@@ -225,8 +228,7 @@ class Controller(Thread):
     elif state_changes & self.BP_CHANGED != 0 and self._target is not None:
       self.session.bp_changed(self._target.breakpoint_iter())
 
-    if state_changes != 0:
-      self.update_buffers()
+    self.update_buffers()
     return success
 
   def run(self):
@@ -261,13 +263,28 @@ class Controller(Thread):
             self.logger.critical(traceback.format_exc())
         elif event_matches(self._process.broadcaster):
           while True:
-            # FIXME break out of infinite loops (buggy programs may hang Vim!)
-            stdout = self._process.GetSTDOUT(256)
-            # TODO stderr
-            if len(stdout) == 0:
+            out = self._process.GetSTDOUT(256)
+            out += self._process.GetSTDERR(256)
+            if len(out) == 0:
               break
-            lines = stdout.replace('\r\n', '\n').split('\n')
-            self.buffers.logs_append(lines)
+            n_lines = self.buffers.logs_append(out)
+            if n_lines == 0:
+              self._proc_cur_line_len += len(out)
+            else:
+              self._proc_cur_line_len = 0
+              self._proc_lines_count += n_lines
+            if self._proc_cur_line_len > 8192 or self._proc_lines_count > 2048:
+              # detect and stop/kill insane process
+              if self._process.state == lldb.eStateStopped:
+                pass
+              elif self._proc_sigstop_count > 7:
+                self._process.Kill()
+                self.buffers.logs_append(u'\u2717SIGSTOP limit exceeded! Sent SIGKILL!\n')
+              else:
+                self._process.SendAsyncInterrupt()
+                self._proc_sigstop_count += 1
+                self.buffers.logs_append(u'\u2717Output limits exceeded! Sent SIGSTOP!\n')
+              break
           self.update_buffers()
       else: # Timed out
         to_count += 1

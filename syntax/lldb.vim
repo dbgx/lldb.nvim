@@ -1,9 +1,14 @@
-syn match LLDebugSym /✓/ conceal contained
-syn match LLDebugLine /✓.*$/ contains=LLDebugSym
-syn match LLDebugErrSym /✗/ conceal contained
-syn match LLDebugErrLine /✗.*$/ contains=LLDebugErrSym
+syn match LLCmdMarker /→/ conceal contained
+syn match LLCmd /→.*$/ contains=LLCmdMarker
+syn match LLCmdOutMarker /✓/ conceal contained
+syn match LLCmdOut /✓.*$/ contains=LLCmdOutMarker
+syn match LLCmdErrMarker /✗/ conceal contained
+syn match LLCmdErr /✗.*$/ contains=LLCmdErrMarker
 
-hi def link LLDebugSym Ignore
-hi def link LLDebugErrSym Ignore
-hi def link LLDebugLine Debug
-hi def link LLDebugErrLine Exception
+hi def link LLCmdMarker Ignore
+hi def link LLCmdOutMarker Ignore
+hi def link LLCmdErrMarker Ignore
+
+hi def link LLCmd Comment
+hi def link LLCmdOut Debug
+hi def link LLCmdErr Exception

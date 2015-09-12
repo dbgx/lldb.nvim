@@ -105,18 +105,20 @@ class VimX:
         if append:
           b[-1] += content[0]
           b[:] += content[1:]
-          # TODO change cursor pos?
         else:
           b[:] = content
         b.options['ma'] = False
         raise StopIteration
 
     has_mod = True
-    if  not append and bufnr in self.buffer_cache and \
-        content.len() == self.buffer_cache[bufnr].len():
+    if append:
+      if len(content) == 0:
+        return
+    elif  bufnr in self.buffer_cache \
+      and len(content) == len(self.buffer_cache[bufnr]):
       has_mod = False
-      for i in range(0, content.len()):
-        if content[i] != self.buffer_cache[bufnr][i]:
+      for l1, l2 in zip(content, self.buffer_cache[bufnr]):
+        if l1 != l2:
           has_mod = True
           break
 

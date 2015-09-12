@@ -75,10 +75,20 @@ class VimBuffers:
       if is_selected and jump2pc:
         self.vimx.sign_jump(bufnr, sign.id)
 
-
-  def logs_append(self, lines):
+  def logs_append(self, outstr, prefix=None):
+    """ Returns the number lines appended """
     self.buf_map_check()
+
+    if len(outstr) == 0:
+      return 0
+    lines = outstr.replace('\r\n', '\n').split('\n')
+    if prefix is not None:
+      last_line = lines[-1]
+      if len(last_line) > 0:
+        last_line = prefix + last_line
+      lines = [prefix + line for line in lines[:-1]] + [ last_line ]
     self.vimx.update_noma_buffer(self.buf_map['logs'], lines, append=True)
+    return len(lines) - 1
 
   def update_breakpoints(self, target, hard_update=False):
     """ Decorates buffer with signs corresponding to breakpoints in target. """
