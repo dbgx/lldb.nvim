@@ -6,20 +6,27 @@ class VimX:
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
     self._vim = vim
+    self._vim_test = not self._vim.session._session._is_running
     self.buffer_cache = {}
 
   def call(self, *args, **kwargs):
     vim = self._vim
     if 'async' not in kwargs or not kwargs['async']:
+      if self._vim_test:
+        return vim.call(*args, async=False)
       out_q = Queue()
       vim.session.threadsafe_call(lambda:
           out_q.put(vim.call(*args, async=False)))
       return out_q.get()
     else:
+      if self._vim_test:
+        return vim.call(*args, async=True)
       vim.session.threadsafe_call(lambda: vim.call(*args, async=True))
 
   def eval(self, expr, async=False):
     vim = self._vim
+    if self._vim_test:
+      return vim.eval(expr, async=async)
     if not async:
       out_q = Queue()
       vim.session.threadsafe_call(lambda: out_q.put(vim.eval(expr, async=False)))
@@ -29,6 +36,8 @@ class VimX:
 
   def command(self, cmd, async=True):
     vim = self._vim
+    if self._vim_test:
+      return vim.command(cmd, async=async)
     vim.session.threadsafe_call(lambda: vim.command(cmd, async=async))
 
   def log(self, msg, level=1):
@@ -82,7 +91,10 @@ class VimX:
       if not breaked:
         mapped.append(None)
       out_q.put(mapped)
-    vim.session.threadsafe_call(map_buffers_inner)
+    if self._vim_test:
+      map_buffers_inner()
+    else:
+      vim.session.threadsafe_call(map_buffers_inner)
     return out_q.get()
 
   def get_buffer_name(self, nr):

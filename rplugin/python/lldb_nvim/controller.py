@@ -22,7 +22,9 @@ class Controller(Thread):
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
 
+    self._sink = open('/dev/null')
     self._dbg = lldb.SBDebugger.Create()
+    self._dbg.SetOutputFileHandle(self._sink, False)
     self._target = None
     self._process = None
     self._num_bps = 0
@@ -293,4 +295,5 @@ class Controller(Thread):
           break
     self._dbg.Terminate()
     self._dbg = None
+    self._sink.close()
     self.logger.info('Terminated!')
