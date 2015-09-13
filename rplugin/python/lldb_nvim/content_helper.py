@@ -29,6 +29,12 @@ def get_bploc_tuples(bp):
       locs.append(le_tupl[:2])
   return locs
 
+def get_description(lldb_obj):
+  from lldb import SBStream
+  s = SBStream()
+  lldb_obj.GetDescription(s)
+  return s.GetData()
+
 def get_process_stat(target):
   from lldb import eStateStopped
   (proc, stat) = (None, '')
@@ -37,14 +43,15 @@ def get_process_stat(target):
   else:
     proc = target.GetProcess()
     if not proc or not proc.IsValid():
+      proc = None
       stat = 'Process does not exist.'
     elif proc.GetState() == eStateStopped:
       pass
     else:
-      from lldb import SBStream
-      s = SBStream()
-      proc.GetDescription(s)
-      stat = '%s, exit status = %s' % (s.GetData(), proc.GetExitStatus())
+      stat = get_description(proc)
+      exit_status = proc.GetExitStatus()
+      if exit_status != -1:
+        stat += ', exit status = %d' % exit_status
   return (proc, stat)
 
 def get_selected_frame(process):
@@ -58,26 +65,9 @@ def get_selected_frame(process):
 
   return frame
 
-def format_variable(var, indent = 0):
-  """ Returns a list of strings "(Type) Name = Value" for SBValue var and
-      its children
-  """
-  MAX_DEPTH = 6 # FIXME add user customizability
-
-  val = var.GetValue() # returns None if the value is too big
-  if val is None:
-    val = '...'
-  children = []
-  if var.GetNumChildren() > 0:
-    if indent >= MAX_DEPTH:
-      children = [ '%s...' % (' ' * (indent + 1)) ]
-    else:
-      for x in var:
-        children.extend(format_variable(x, indent + 1))
-  return [ '%s(%s) %s = %s' % (' ' * indent,
-                               var.GetTypeName(),
-                               var.GetName(),
-                               str(val)) ] + children
+def format_variable(var):
+  """ Returns a list of strings describing the SBValue `var` """
+  return get_description(var).split('\n')[:-1]
 
 def get_locals_content(target):
   """ Returns list of local variables and their values in frame """
@@ -91,8 +81,8 @@ def get_locals_content(target):
   # args, locals, statics, in-scope only # FIXME add user customizability
   vals = frame.GetVariables(True, True, False, True)
   out = []
-  for x in vals:
-    out.extend(format_variable(x))
+  for v in vals:
+    out.extend(format_variable(v))
   return out
 
 def format_register(reg):
