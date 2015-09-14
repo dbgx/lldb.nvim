@@ -1,8 +1,12 @@
 import lldb
 from threading import Thread
+from Queue import Queue, Empty, Full
 
 from .vim_buffers import VimBuffers
 from .session import Session
+
+class EventLoopError(Exception):
+  pass
 
 class Controller(Thread):
   """ Thread object that handles LLDB events and commands. """
@@ -17,7 +21,6 @@ class Controller(Thread):
 
   def __init__(self, vimx):
     """ Creates the LLDB SBDebugger object and more! """
-    from Queue import Queue
     import logging
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
@@ -30,8 +33,8 @@ class Controller(Thread):
     self._num_bps = 0
     self.interpreter = self._dbg.GetCommandInterpreter()
 
-    self.in_queue = Queue()
-    self.out_queue = Queue()
+    self.in_queue = Queue(maxsize=2)
+    self.out_queue = Queue(maxsize=1)
 
     self.listener = lldb.SBListener("the_ear")
     self.interrupter = lldb.SBBroadcaster("the_mouth")
@@ -59,17 +62,25 @@ class Controller(Thread):
     """ (Thread-safe) Call `method` with `args`. If `sync` is True, wait for
         `method` to complete and return its value. If timeout is set and non-
         negative, and the `method` did not complete within `timeout` seconds,
-        a Queue.Empty exception is raised!
+        an EventLoopError is raised!
     """
     if self._dbg is None:
-      self.logger.critical("Debugger was terminated!" +
-          (" Attempted calling %s" % method.func_name if method else ""))
-      return
-    self.in_queue.put((method, args, sync))
-    interrupt = lldb.SBEvent(self.CTRL_VOICE, "the_sound")
-    self.interrupter.BroadcastEvent(interrupt)
-    if sync:
-      return self.out_queue.get(True, timeout)
+      self.logger.critical("Debugger not found!")
+      raise EventLoopError("Dead debugger!")
+    if self.out_queue.full(): # garbage
+      self.out_queue.get() # clean
+
+    try:
+      self.in_queue.put((method, args, sync), block=False)
+      interrupt = lldb.SBEvent(self.CTRL_VOICE, "the_sound")
+      self.interrupter.BroadcastEvent(interrupt)
+      if sync:
+        return self.out_queue.get(block=True, timeout=timeout)
+    except Empty:
+      raise EventLoopError("Timed out!")
+    except Full:
+      self.logger.critical("Event loop thread is probably dead!")
+      raise EventLoopError("Dead event loop!")
 
   def safe_execute(self, tokens):
     """ (Thread-safe) Executes an lldb command defined by a list of tokens.
@@ -234,7 +245,6 @@ class Controller(Thread):
   def run(self):
     """ This thread's event loop. """
     import traceback
-    from Queue import Empty
     to_count = 0
     while True:
       event = lldb.SBEvent()
@@ -250,15 +260,13 @@ class Controller(Thread):
 
         if event_matches(self.interrupter, skip=False):
           try:
-            method, args, sync = self.in_queue.get(False)
+            method, args, sync = self.in_queue.get(block=False)
             if method is None:
               break
             self.logger.info('Calling %s with %s' % (method.func_name, repr(args)))
             ret = method(*args)
             if sync:
-              self.out_queue.put(ret)
-          except Empty:
-            self.logger.info('Empty interrupt!')
+              self.out_queue.put(ret, block=False)
           except Exception:
             self.logger.critical(traceback.format_exc())
         elif event_matches(self._process.broadcaster):

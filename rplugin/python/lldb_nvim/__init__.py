@@ -3,7 +3,7 @@ import check_lldb
 
 lldb_success = check_lldb.probe()
 
-from .controller import Controller
+from .controller import Controller, EventLoopError
 from .vim_x import VimX
 
 @neovim.plugin
@@ -53,7 +53,8 @@ class Middleman(object):
     try:
       return self.ctrl.safe_call(self.ctrl.complete_command,
                                  [arg, line, pos], True, timeout=3)
-    except Exception:
+    except EventLoopError as e:
+      self.logger.warn("%s on %s | %s" % (str(e), repr(line[:pos]), repr(line[pos:])))
       return []
 
   @neovim.rpc_export('get_modes', sync=True)
@@ -61,7 +62,8 @@ class Middleman(object):
     try:
       return self.ctrl.safe_call(self.ctrl.session.get_modes,
                                  [], True, timeout=1)
-    except Exception:
+    except EventLoopError as e:
+      self.logger.warn(str(e))
       return []
 
   @neovim.rpc_export('breakswitch')
