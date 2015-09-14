@@ -11,12 +11,12 @@ from .content_helper import *
 
 class VimBuffers:
   _content_map = {
-      "backtrace": [ "command", "bt" ],
-      "breakpoints": [ "command", "breakpoint list" ],
-      "disassembly": [ "command", "disassemble -c 20 -p" ],
-      "threads": [ "command", "thread list" ],
-      "locals": [ "cb_on_target", get_locals_content ],
-      "registers": [ "cb_on_target", get_registers_content ],
+      "backtrace": "bt",
+      "breakpoints": "breakpoint list",
+      "disassembly": "disassemble -c 20 -p",
+      "threads": "thread list",
+      "locals": "frame variable",
+      "registers": "register read"
   }
 
   def __init__(self, vimx):
@@ -134,15 +134,12 @@ class VimBuffers:
   def update_buffer(self, buf, target, commander):
     self.buf_map_check()
 
-    content = self._content_map[buf]
-    if content[0] == 'command':
-      proc_stat = get_process_stat(target)[1]
-      success, output = commander(content[1])
-      if not success and proc_stat:
-        output = proc_stat
-      results = output.split('\n')
-    elif content[0] == 'cb_on_target':
-      results = content[1](target)
+    command = self._content_map[buf]
+    proc_stat = get_process_stat(target)[1]
+    success, output = commander(command)
+    if not success and proc_stat:
+      output = proc_stat
+    results = output.split('\n')
 
     if buf == 'breakpoints':
       self.update_breakpoints(target)

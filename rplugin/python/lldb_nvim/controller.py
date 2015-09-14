@@ -179,7 +179,7 @@ class Controller(Thread):
 
   def do_disassemble(self, cmd):
     """ Change the `disassembly` buffer command and update it. """
-    self.buffers._content_map['disassembly'][1] = cmd
+    self.buffers._content_map['disassembly'] = cmd
     self.update_buffers(buf='disassembly')
 
   def do_breakswitch(self, bufnr, line):
