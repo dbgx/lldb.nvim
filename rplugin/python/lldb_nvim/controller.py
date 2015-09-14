@@ -111,19 +111,17 @@ class Controller(Thread):
     else:
       return []
 
-  def update_buffers(self, jump2pc=True, buf=None):
+  def update_buffers(self, buf=None):
     """ Update lldb buffers and signs placed in source files.
-        @param jump2pc
-            Whether or not to move the cursor to the program counter (PC).
         @param buf
-            If None, all buffers and signs excepts breakpoints would be updated.
+            If None, all buffers and signs would be updated.
             Otherwise, update only the specified buffer.
     """
     if self.is_busy():
       return
     commander = self.get_command_result
     if buf is None:
-      self.buffers.update(self._target, commander, jump2pc)
+      self.buffers.update(self._target, commander)
     else:
       self.buffers.update_buffer(buf, self._target, commander)
 

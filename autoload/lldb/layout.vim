@@ -54,8 +54,8 @@ function! lldb#layout#setup(mode)
   exe 'belowright ' . winw3/2 . 'vsp +b' . s:buffer_map['registers']
   exe '0tab sb ' . code_buf
   exe 'belowright ' . winw2 . 'vsp +b' . s:buffer_map['backtrace']
-  exe 'belowright sb ' . s:buffer_map['breakpoints']
-  exe 'belowright sb ' . s:buffer_map['locals']
+  exe 'belowright ' . winh2 . 'sp +b' . s:buffer_map['breakpoints']
+  exe 'belowright ' . winh2/2 . 'sp +b' . s:buffer_map['locals']
   wincmd h
   exe 'belowright ' . winh2/2 . 'sp +b' . s:buffer_map['logs']
   set cole=2 cocu=nc

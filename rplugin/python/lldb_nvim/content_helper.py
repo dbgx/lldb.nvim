@@ -1,5 +1,5 @@
 def resolve_line_entry(le):
-  return (le.file.fullpath, le.line, le.column)
+  return (le.file.fullpath, le.line)
 
 def get_pc_source_loc(thread):
   """ Returns a tuple (thread_index, file, line, column) that represents where
@@ -26,7 +26,7 @@ def get_bploc_tuples(bp):
   for bploc in bp:
     le_tupl = resolve_line_entry(bploc.GetAddress().line_entry)
     if le_tupl[0] and le_tupl[1] > 0: # le_tupl[0] might be None
-      locs.append(le_tupl[:2])
+      locs.append(le_tupl)
   return locs
 
 def get_description(lldb_obj):

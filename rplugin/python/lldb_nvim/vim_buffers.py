@@ -32,15 +32,15 @@ class VimBuffers:
     self.bp_signs = {} # maps (bufnr, line) -> <BreakpointSign object>
     self.bp_list = {} # maps (bufnr, line) -> [<SBBreakpoint object>, ...]
     self.pc_signs = {}
+    self.pc_cur_loc = None
 
   def buf_map_check(self):
     if not self.buf_map:
       self.buf_map = self.vimx.init_buffers()
 
-  def update_pc(self, target, jump2pc):
+  def update_pc(self, target):
     """ Place the PC sign on the PC location of each thread's selected frame.
-        If jump2pc is True, the cursor should move to the PC location in the
-        selected frame of the selected thread.
+        If the 'selected' PC location has changed, jump to it.
     """
 
     # Clear all existing PC signs
@@ -61,7 +61,7 @@ class VimBuffers:
         # no valid source locations for PCs. hide all existing PC markers
         continue
 
-      (tid, fname, line, col) = loc
+      (tid, fname, line) = loc
       self.logger.info("Got pc loc: %s" % repr(loc))
       is_selected = thread.GetIndexID() == process.GetSelectedThread().GetIndexID()
       if os.path.exists(fname):
@@ -72,8 +72,9 @@ class VimBuffers:
       sign = PCSign(self.vimx, bufnr, line, is_selected)
       self.pc_signs[(bufnr, line)] = sign
 
-      if is_selected and jump2pc:
+      if is_selected and self.pc_cur_loc != (bufnr, line):
         self.vimx.sign_jump(bufnr, sign.id)
+        self.pc_cur_loc = (bufnr, line)
 
   def logs_append(self, outstr, prefix=None):
     """ Returns the number lines appended """
@@ -148,9 +149,9 @@ class VimBuffers:
 
     self.vimx.update_noma_buffer(self.buf_map[buf], results)
 
-  def update(self, target, commander, jump2pc=False):
+  def update(self, target, commander):
     """ Updates signs, buffers, and possibly jumps to pc. """
-    self.update_pc(target, jump2pc)
+    self.update_pc(target)
 
     for buf in self._content_map.keys():
       self.update_buffer(buf, target, commander)

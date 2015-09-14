@@ -70,7 +70,7 @@ class Middleman(object):
 
   @neovim.rpc_export('refresh')
   def _refresh(self):
-    self.ctrl.safe_call(self.ctrl.update_buffers, [False])
+    self.ctrl.safe_call(self.ctrl.update_buffers)
 
   @neovim.rpc_export('watchswitch')
   def _watchpoint(self, var_name):
