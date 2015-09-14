@@ -16,8 +16,7 @@ class Session:
     self.help_flags = { "new": False,
                         "launch_prompt": True,
                         "session_show": True }
-    self.command_hist = deque(maxlen=4)
-    self.bp_cmd_map = {}
+    self.bpid_map = {}
 
 
   def isalive(self):
@@ -25,46 +24,55 @@ class Session:
     return len(self.state) > 1 and '@file' in self.internal and '@mode' in self.internal
 
 
-  def new_command(self, cmd):
-    self.command_hist.appendleft(cmd)
+  def bp_map_set(self, bpid, val):
+    self.bpid_map[bpid] = val
+
+
+  def bp_map_auto(self, bp, fallback=None):
+    """ Sets the value of bp.id key by trying to resolve bp to a single location;
+        if not possible, sets the value to fallback
+    """
+    from .content_helper import get_bploc_tuples
+    if bp.GetNumLocations() == 1:
+      self.bp_map_set(bp.id, get_bploc_tuples(bp)[0])
+    else:
+      self.bp_map_set(bp.id, fallback)
 
 
   def new_target(self, target):
+    self.bpid_map = {}
     if target.GetNumBreakpoints() > 0:
       self.logger.warn("New target has breakpoints!")
-      # TODO patch up or clean up!
-    else:
-      self.bp_cmd_map = {}
+      for bp in target.breakpoint_iter(): # patch up
+        self.bp_map_auto(bpid)
 
 
-  def bp_changed(self, bp_iter):
+  def bp_changed(self, cmd, bp_iter):
     import re
-    from .content_helper import get_bploc_tuples
-    old_bps = set(self.bp_cmd_map.keys())
+    old_bps = set(self.bpid_map.keys())
     cur_bps = set()
-    bp_map = {}
+    bpid_llobj_map = {}
     for bp in bp_iter:
       cur_bps.add(bp.id)
-      bp_map[bp.id] = bp
+      bpid_llobj_map[bp.id] = bp
 
     new_bps = cur_bps - old_bps
     del_bps = old_bps - cur_bps
     if len(new_bps) == 1:
       bpid = new_bps.pop()
-      bp = bp_map[bpid]
-      cmd = self.command_hist[0]
-      if  bp.GetNumLocations() == 1 and \
-          re.match(r'br.+s(.+\s(-f|--file|-l|--line)){2}.+', cmd):
-        self.bp_cmd_map[bpid] = get_bploc_tuples(bp)[0]
+      bp = bpid_llobj_map[bpid]
+      if re.match(r'(b|tbreak|_regexp-t?break|) \S+:[0-9]+\s*$', cmd):
+        self.bp_map_auto(bp, cmd)
       else:
-        self.bp_cmd_map[bpid] = cmd
+        self.bp_map_set(bpid, cmd)
     elif len(new_bps) > 1: # from loading a script file?
       for bpid in new_bps:
-        self.bp_cmd_map[bpid] = None
+        self.bp_map_set(bpid, None)
       self.logger.warn("Multiple new breakpoints!")
+
     if len(del_bps) > 0:
       for bpid in del_bps:
-        del self.bp_cmd_map[bpid]
+        del self.bpid_map[bpid]
       self.logger.info("Deleted breakpoints %s!" % repr(list(del_bps)))
 
 
@@ -78,12 +86,12 @@ class Session:
           self.ctrl.exec_command(self.format(cmd))
       else:
         for l in vals:
-          self.ctrl.exec_command('breakpoint set -f %s -l %d' % (key, l))
+          self.ctrl.bp_set_line(key, l)
 
 
   def bp_save(self):
     file_bp_map = { "@ll": [] }
-    for bp_val in self.bp_cmd_map.values():
+    for bp_val in self.bpid_map.values():
       if isinstance(bp_val, basestring):
         file_bp_map["@ll"].append(bp_val)
       elif bp_val is not None:
@@ -93,6 +101,9 @@ class Session:
           file_bp_map[relpath].append(line)
         else:
           file_bp_map[relpath] = [ line ]
+    for key in file_bp_map.keys():
+      if key != "@ll":
+        file_bp_map[key] = sorted(set(file_bp_map[key]))
     self.state['breakpoints'] = file_bp_map
 
 
@@ -286,7 +297,7 @@ class Session:
         sfile_bufnr = self.vimx.buffer_add(self.get_confpath())
         json_str = json.dumps(self.state, indent=4, separators=(',', ': '))
         json_str = re.sub(r'\[\s*"(bp|ll|sh)",\s*"([^"]*)"\s*\]', r'[ "\1", "\2" ]', json_str)
-        json_str = re.sub(r'(\[|[0-9]+,?)\s*(?=\]|[0-9]+)', r'\1 ', json_str)
+        json_str = re.sub(r'(\[|[0-9]+,?)\s+(?=\]|[0-9]+)', r'\1 ', json_str)
         def json_show(b):
           if b.number == sfile_bufnr:
             b[:] = json_str.split('\n')

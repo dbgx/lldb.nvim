@@ -193,16 +193,23 @@ class Controller(Thread):
     self.buffers._content_map['disassembly'] = cmd
     self.update_buffers(buf='disassembly')
 
+  def bp_set_line(self, spath, line):
+    from os.path import abspath
+    fpath = abspath(spath).encode('ascii', 'ignore')
+    bp = self._target.BreakpointCreateByLocation(fpath, line)
+    self.buffers.logs_append(u'\u2192(lldb-bp) %s:%d\n' % (spath, line))
+    self.session.bp_map_auto(bp, (spath, line))
+    self.update_buffers(buf='breakpoints')
+
   def do_breakswitch(self, bufnr, line):
     """ Switch breakpoint at the specified line in the buffer. """
     key = (bufnr, line)
     if self.buffers.bp_list.has_key(key):
       bps = self.buffers.bp_list[key]
       args = "delete %s" % " ".join([str(b.GetID()) for b in bps])
+      self.exec_command("breakpoint " + args)
     else:
-      path = self.vimx.get_buffer_name(bufnr)
-      args = "set -f %s -l %d" % (path, line)
-    self.exec_command("breakpoint " + args)
+      self.bp_set_line(self.vimx.get_buffer_name(bufnr), line)
 
   def put_stdin(self, instr):
     """ Call PutSTDIN() of process with instr. """
@@ -226,7 +233,6 @@ class Controller(Thread):
         result in the logs buffer. Returns True if succeeded.
     """
     self.buffers.logs_append(u'\u2192(lldb) %s\n' % command)
-    self.session.new_command(command)
     (success, output) = self.get_command_result(command, True)
     if not success:
       self.buffers.logs_append(output, u'\u2717')
@@ -237,7 +243,7 @@ class Controller(Thread):
     if state_changes & self.TARG_NEW != 0:
       self.session.new_target(self._target)
     elif state_changes & self.BP_CHANGED != 0 and self._target is not None:
-      self.session.bp_changed(self._target.breakpoint_iter())
+      self.session.bp_changed(command, self._target.breakpoint_iter())
 
     self.update_buffers()
     return success
