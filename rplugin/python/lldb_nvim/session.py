@@ -195,10 +195,15 @@ class Session:
     from os import path, chdir
     head, tail = path.split(path.abspath(confpath))
     if len(tail) == 0:
+      self.vimx.log("Error: invalid path!")
+      return False
+    try:
+      chdir(head)
+    except OSError as e:
+      self.vimx.log("%s" % e)
       return False
     self.internal["@dir"] = head
     self.internal["@file"] = tail
-    chdir(head)
     return True
 
 
@@ -233,9 +238,15 @@ class Session:
 
   def handle(self, cmd, *args):
     if cmd == 'new':
-      ret = self.vimx.call("lldb#session#new", len(self.state))
-      if not ret or '_file' not in ret or not self.set_path(ret["_file"]):
+      if self.isalive() and self.vimx.eval("lldb#session#discard_prompt()") == 0:
+        self.vimx.log("Session left unchanged!", 0)
+        return
+
+      ret = self.vimx.eval("lldb#session#new()")
+      if not ret or '_file' not in ret:
         self.vimx.log("Skipped -- no session was created!")
+        return
+      if not self.set_path(ret["_file"]):
         return
 
       try:
@@ -264,6 +275,8 @@ class Session:
         debug["teardown"].append("target delete")
         self.help_flags["new"] = True
 
+      self.vimx.log("New session created!", 0)
+
     elif cmd in ['load', 'reload']:
       if cmd == 'reload':
         if '@file' not in self.internal:
@@ -281,7 +294,11 @@ class Session:
         self.vimx.log("Too many arguments!")
         return
 
-      # TODO confirm whether to discard session
+      if  self.isalive() and cmd == 'load' and \
+          self.vimx.eval("lldb#session#discard_prompt()") == 0:
+        self.vimx.log("Session left unchanged!", 0)
+        return
+
       try:
         with open(confpath) as f:
           self.parse_and_load(''.join(f.readlines()))
@@ -289,7 +306,7 @@ class Session:
         self.vimx.log("Bad session file: " + str(e))
       else:
         self.set_path(confpath)
-        self.vimx.log("Loaded %s" % confpath)
+        self.vimx.log("Loaded %s" % confpath, 0)
 
     elif cmd == 'show':
       if self.isalive():

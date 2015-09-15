@@ -50,7 +50,7 @@ The plugin is being developed keeping 3 broad goals in mind:
     * Visual layout or window management
     * Key-bindings
 
-As of 0.7 release, I believe **Completeness** has been almost achieved, and a glimpse of the rest is in view.
+As of 0.7 release, I believe **Completeness** is within reach, and a glimpse of the rest is in view.
 
 ## Getting started
 
@@ -59,7 +59,7 @@ For easy navigation of vim documentaion, I suggest using [viewdoc plugin](https:
 
 ## General Discussion
 
-[![Join the chat at https://gitter.im/critiqjo/lldb.nvim](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/critiqjo/lldb.nvim?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Join the chat at https://gitter.im/critiqjo/lldb.nvim](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/critiqjo/lldb.nvim?utm\_source=badge&utm\_medium=badge&utm\_campaign=pr-badge&utm\_content=badge)
 
 ## FAQ
 
@@ -67,6 +67,12 @@ For easy navigation of vim documentaion, I suggest using [viewdoc plugin](https:
 
 Have you tried `:UpdateRemotePlugins` and restarting Neovim? If you did, and
 the problem persists, please file a bug report (also see `:help lldb-bugs`).
+
+#### The program counter is pointing to the wrong line in the source file at a breakpoint hit.
+
+Use clang compiler instead of gcc. Quote from [clang comparison](http://clang.llvm.org/comparison.html#gcc):
+
+>Clang does not implicitly simplify code as it parses it like GCC does. Doing so causes many problems for source analysis tools.
 
 #### How do I attach to a running process?
 

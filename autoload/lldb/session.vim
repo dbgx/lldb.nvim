@@ -62,13 +62,14 @@ function! s:find_xfiles()
   endif
 endfun
 
-function! lldb#session#new(has_state)
-  if a:has_state && input('Throw away the current session? (y/n) ', 'n') != 'y'
-    return
-  endif
+function! lldb#session#discard_prompt()
+  return input('Throw away the current session? [y=yes] ') == 'y'
+endfun
+
+function! lldb#session#new()
   let session_file = input('Write session file to: ', g:lldb#session#file, 'file')
   if len(session_file) == 0
-    return
+    return {}
   endif
   let target = input('Path to target executable: ', s:find_xfiles(), 'file')
   return { "_file": session_file,
