@@ -54,11 +54,15 @@ As of 0.7 release, I believe **Completeness** is within reach, and a glimpse of 
 
 ## Getting started
 
-A demo screencast will be posted soon, until then please refer to the getting started section in the vim-docs (`:h lldb-start`).
-For easy navigation of vim documentaion, I suggest using [viewdoc plugin](https://github.com/powerman/vim-plugin-viewdoc) by powerman.
+Here is a short screencast demonstrating the basics:
+[GIF](https://cloud.githubusercontent.com/assets/1436441/9903483/6ed0e9cc-5c94-11e5-8e4e-ce3b389df2d5.gif), [Youtube](https://youtu.be/rd654OxlmQs)
+
+Also check out the getting started section from vim-docs (`:h lldb-start`).
+For easy navigation of docs, I suggest using [viewdoc plugin](https://github.com/powerman/vim-plugin-viewdoc) by powerman.
 
 ## General Discussion
 
+Please leave a feedback at the gitter page:
 [![Join the chat at https://gitter.im/critiqjo/lldb.nvim](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/critiqjo/lldb.nvim?utm\_source=badge&utm\_medium=badge&utm\_campaign=pr-badge&utm\_content=badge)
 
 ## FAQ
@@ -70,7 +74,7 @@ the problem persists, please file a bug report (also see `:help lldb-bugs`).
 
 #### The program counter is pointing to the wrong line in the source file at a breakpoint hit.
 
-Use clang compiler instead of gcc. Quote from [clang comparison](http://clang.llvm.org/comparison.html#gcc):
+Try clang instead of gcc (fingers crossed). See [clang comparison](http://clang.llvm.org/comparison.html#gcc):
 
 >Clang does not implicitly simplify code as it parses it like GCC does. Doing so causes many problems for source analysis tools.
 
