@@ -26,18 +26,25 @@ and communicates with the Neovim process using RPC calls.
 
 ## Installation
 
-Installation is easiest using a plugin manager such as [vim-plug](https://github.com/junegunn/vim-plug):
-```
-    Plug "critiqjo/lldb.nvim"
-```
-Or manually copy the files to your `~/.nvimrc` folder.
+1. Using a plugin manager such as [vim-plug](https://github.com/junegunn/vim-plug):
 
-Note: After installing (or updating) a plugin that uses Neovim's remote plugin API,
-you (might) have to execute:
-```
-    :UpdateRemotePlugins
-```
-and restart Neovim.
+   ```
+       Plug "critiqjo/lldb.nvim"
+   ```
+
+   Alternatively, clone this repo, and add the following line to your nvimrc:
+
+   ```
+       set rtp+=/path/to/lldb.nvim
+   ```
+
+2. Execute:
+
+   ```
+       :UpdateRemotePlugins
+   ```
+
+   and restart Neovim.
 
 ## Goals
 
@@ -45,12 +52,7 @@ The plugin is being developed keeping 3 broad goals in mind:
 
 * **Ease of use**: Users with almost zero knowledge of command line debuggers should feel comfortable using this plugin.
 * **Completeness**: Experienced users of LLDB should not feel restricted.
-* **Customizability**: Users should be able to bend this plugin easily in the following aspects:
-    * Display of debugger status (eg. customisable disassembly view)
-    * Visual layout or window management
-    * Key-bindings
-
-As of 0.7 release, I believe **Completeness** is within reach, and a glimpse of the rest is in view.
+* **Customizability**: Users should be able to bend this plugin to their needs.
 
 ## Getting started
 
