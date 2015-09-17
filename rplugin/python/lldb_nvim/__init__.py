@@ -17,7 +17,10 @@ class Middleman(object):
       # ImportError will be raised in Controller init below.
     self.ctrl = Controller(VimX(vim))
     self.ctrl.start()
-    vim.command('call lldb#remote#init(%d)' % vim.channel_id)
+    if self.ctrl.vimx._vim_test:
+      print "Note: `:LL-` commands are not bound with this test instance"
+    else:
+      vim.command('call lldb#remote#init(%d)' % vim.channel_id)
 
   @neovim.command('LLsession', nargs='+', complete='customlist,lldb#session#complete')
   def _session(self, args):

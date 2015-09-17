@@ -41,7 +41,7 @@ function! lldb#session#complete(ArgLead, CmdLine, CursorPos)
   endif
   if toknum == 2
     let subcmds = ['new', 'load']
-    if len(lldb#remote#get_modes()) > 0
+    if exists('g:lldb#_channel_id')
       call extend(subcmds, ['bp-save', 'bp-set', 'reload', 'show'])
     endif
     return s:complete_prefix(subcmds, a:ArgLead)
