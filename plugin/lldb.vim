@@ -18,8 +18,14 @@ if !exists('g:lldb#session#mode_teardown')
   let g:lldb#session#mode_teardown = 'lldb#layout#teardown'
 endif
 
+let s:bp_symbol = get(g:, 'lldb#sign#bp_symbol', 'B>')
+let s:pc_symbol = get(g:, 'lldb#sign#pc_symbol', '->')
+
 highlight LLSelectedPCLine ctermbg=darkblue guibg=darkblue
 highlight LLUnselectedPCLine ctermbg=black guibg=black
-sign define llsign_bpres text=B>
-sign define llsign_pcsel text=-> linehl=LLSelectedPCLine texthl=LLSelectedPCLine
-sign define llsign_pcunsel text=-> linehl=LLUnselectedPCLine texthl=LLUnselectedPCLine
+
+execute 'sign define llsign_bpres text=' . s:bp_symbol
+execute 'sign define llsign_pcsel text=' . s:pc_symbol .
+    \ ' texthl=LLSelectedPCLine linehl=LLSelectedPCLine'
+execute 'sign define llsign_pcunsel text=' . s:pc_symbol .
+    \ ' texthl=LLUnselectedPCLine linehl=LLUnselectedPCLine'

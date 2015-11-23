@@ -122,6 +122,12 @@ CUSTOMIZING                                             *lldb-customizing*
                       Default layout teardown function: 'lldb#layout#teardown'
                       Similar to mode_setup above.
 
+ *g:lldb#sign#bp_symbol*
+                      Default sign text for breakpoints: 'B>'
+
+ *g:lldb#sign#pc_symbol*
+                      Default sign text for program counter: '->'
+
 ==============================================================================
 
 COMMANDS                                                *lldb-commands*
