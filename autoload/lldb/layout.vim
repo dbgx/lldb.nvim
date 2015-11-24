@@ -41,25 +41,22 @@ function! lldb#layout#setup(mode)
   if !exists('s:buffer_map') || empty(s:buffer_map)
     call lldb#layout#init_buffers()
   endif
-  let code_buf = bufnr('%')
-  if index(s:buffers, code_buf) >= 0
-    let code_buf = '[No Name]'
-  endif
-  exe '0tab sb ' . code_buf
+  0tab sp
   let winw2 = winwidth(0)*2/5
   let winw3 = winwidth(0)*3/5
   let winh2 = winheight(0)*2/3
   exe 'belowright ' . winw3 . 'vsp +b' . s:buffer_map['threads']
   exe 'belowright ' . winh2 . 'sp +b' . s:buffer_map['disassembly']
   exe 'belowright ' . winw3/2 . 'vsp +b' . s:buffer_map['registers']
-  exe '0tab sb ' . code_buf
+  2wincmd h
+  0tab sp
   exe 'belowright ' . winw2 . 'vsp +b' . s:buffer_map['backtrace']
   exe 'belowright ' . winh2 . 'sp +b' . s:buffer_map['breakpoints']
   exe 'belowright ' . winh2/2 . 'sp +b' . s:buffer_map['locals']
   wincmd h
   exe 'belowright ' . winh2/2 . 'sp +b' . s:buffer_map['logs']
   set cole=2 cocu=nc
-  exe bufwinnr(code_buf) . "wincmd w"
+  wincmd k
 endfun
 
 " tears down windows (and tabs) containing debug buffers
