@@ -28,23 +28,25 @@ class Controller(Thread):
     self._sink = open('/dev/null')
     self._dbg = lldb.SBDebugger.Create()
     self._dbg.SetOutputFileHandle(self._sink, False)
+    self._ipreter = self._dbg.GetCommandInterpreter()
+
+    self._rcx = lldb.SBListener("the_ear") # receiver
+    self._trx = lldb.SBBroadcaster("the_mouth") # transmitter for user events
+    self._trx.AddListener(self._rcx, self.CTRL_VOICE)
+
     self._target = None
     self._process = None
     self._num_bps = 0
-    self.interpreter = self._dbg.GetCommandInterpreter()
 
     self.in_queue = Queue(maxsize=2)
     self.out_queue = Queue(maxsize=1)
 
-    self.listener = lldb.SBListener("the_ear")
-    self.interrupter = lldb.SBBroadcaster("the_mouth")
-    self.interrupter.AddListener(self.listener, self.CTRL_VOICE)
-
-    self.vimx = vimx # represents the parent Middleman object
-    self.busy_stack = 0 # when busy > 0, buffers are not updated
+    self.vimx = vimx
+    self.busy_stack = 0 # when > 0, buffers are not updated
     self.buffers = VimBuffers(vimx)
     self.session = Session(self, vimx)
-    super(Controller, self).__init__()
+
+    super(Controller, self).__init__() # start the thread
 
   def is_busy(self):
     return self.busy_stack > 0
@@ -73,7 +75,7 @@ class Controller(Thread):
     try:
       self.in_queue.put((method, args, sync), block=False)
       interrupt = lldb.SBEvent(self.CTRL_VOICE, "the_sound")
-      self.interrupter.BroadcastEvent(interrupt)
+      self._trx.BroadcastEvent(interrupt)
       if sync:
         return self.out_queue.get(block=True, timeout=timeout)
     except Empty:
@@ -103,7 +105,7 @@ class Controller(Thread):
 
     if arg == line and line != '':
       # provide all possible completions when completing 't', 'b', 'di' etc.
-      num = self.interpreter.HandleCompletion('', 0, 1, -1, result)
+      num = self._ipreter.HandleCompletion('', 0, 1, -1, result)
       cands = ['']
       for x in result:
         if x == line:
@@ -111,7 +113,7 @@ class Controller(Thread):
         elif x.startswith(line):
           cands.append(x)
     else:
-      num = self.interpreter.HandleCompletion(line, pos, 1, -1, result)
+      num = self._ipreter.HandleCompletion(line, pos, 1, -1, result)
       cands = [x for x in result]
 
     if len(cands) > 1:
@@ -137,8 +139,8 @@ class Controller(Thread):
       self.buffers.update_buffer(buf, self._target, commander)
 
   def get_state_changes(self):
-    """ Get a value representing target or process changes.
-        If a target or process is new, add our listener to its broadcaster.
+    """ Get a value denoting how target, process, and/or breakpoint have changed.
+        If a new process found, add our listener to its broadcaster.
     """
     changes = 0
     if self._dbg.GetNumTargets() > 1:
@@ -167,7 +169,7 @@ class Controller(Thread):
       if process.IsValid():
         changes |= self.PROC_NEW
         self._process = process
-        process.broadcaster.AddListener(self.listener,
+        process.broadcaster.AddListener(self._rcx,
             lldb.SBProcess.eBroadcastBitStateChanged | \
             lldb.SBProcess.eBroadcastBitSTDOUT | \
             lldb.SBProcess.eBroadcastBitSTDERR)
@@ -225,7 +227,7 @@ class Controller(Thread):
     """
     result = lldb.SBCommandReturnObject()
 
-    self.interpreter.HandleCommand(command.encode('ascii', 'ignore'), result, add2hist)
+    self._ipreter.HandleCommand(command.encode('ascii', 'ignore'), result, add2hist)
     return (result.Succeeded(), result.GetOutput() if result.Succeeded() else result.GetError())
 
   def exec_command(self, command):
@@ -254,17 +256,17 @@ class Controller(Thread):
     to_count = 0
     while True:
       event = lldb.SBEvent()
-      if self.listener.WaitForEvent(30, event): # 30 second timeout
+      if self._rcx.WaitForEvent(30, event): # 30 second timeout
 
         def event_matches(broadcaster, skip=True):
           if event.BroadcasterMatchesRef(broadcaster):
             if skip:
-              while self.listener.GetNextEventForBroadcaster(broadcaster, event):
+              while self._rcx.GetNextEventForBroadcaster(broadcaster, event):
                 pass
             return True
           return False
 
-        if event_matches(self.interrupter, skip=False):
+        if event_matches(self._trx, skip=False):
           try:
             method, args, sync = self.in_queue.get(block=False)
             if method is None:
@@ -302,10 +304,12 @@ class Controller(Thread):
           self.update_buffers()
       else: # Timed out
         to_count += 1
-        if to_count > 172800: # 60 days worth idleness! barrier to prevent infinite loop
+        if to_count > 172800: # in case WaitForEvent() does not wait!
           self.logger.critical('Broke the loop barrier!')
           break
     self._dbg.Terminate()
     self._dbg = None
     self._sink.close()
     self.logger.info('Terminated!')
+
+# vim:et:ts=2:sw=2

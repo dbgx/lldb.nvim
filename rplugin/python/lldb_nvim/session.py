@@ -1,4 +1,4 @@
-from collections import OrderedDict, deque
+from collections import OrderedDict
 from time import sleep
 import json
 
@@ -32,7 +32,7 @@ class Session:
     """ Sets the value of bp.id key by trying to resolve bp to a single location;
         if not possible, sets the value to fallback
     """
-    from .content_helper import get_bploc_tuples
+    from .lldb_utils import get_bploc_tuples
     if bp.GetNumLocations() == 1:
       self.bp_map_set(bp.id, get_bploc_tuples(bp)[0])
     else:
@@ -112,8 +112,6 @@ class Session:
 
 
   def run_actions(self, actions):
-    from os import path
-
     self.ctrl.busy_more()
     for action in actions:
       if isinstance(action, basestring):
@@ -237,6 +235,7 @@ class Session:
 
 
   def handle(self, cmd, *args):
+    """ Handler for :LLsession commands. """
     if cmd == 'new':
       if self.isalive() and self.vimx.eval("lldb#session#discard_prompt()") == 0:
         self.vimx.log("Session left unchanged!", 0)
@@ -335,3 +334,5 @@ class Session:
 
     else:
       self.vimx.log("Invalid sub-command: %s" % cmd)
+
+# vim:et:ts=2:sw=2

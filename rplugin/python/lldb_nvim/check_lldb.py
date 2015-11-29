@@ -55,3 +55,5 @@ def probe():
       pass
 
   return False
+
+# vim:et:ts=2:sw=2

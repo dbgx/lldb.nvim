@@ -2,10 +2,9 @@ def resolve_line_entry(le):
   return (le.file.fullpath, le.line)
 
 def get_pc_source_loc(thread):
-  """ Returns a tuple (thread_index, file, line, column) that represents where
+  """ Returns a tuple (thread_index, file, line) that represents where
       the PC sign should be placed for a thread.
   """
-
   frame = thread.GetSelectedFrame()
   frame_num = frame.GetFrameID()
   le = frame.GetLineEntry()
@@ -17,9 +16,8 @@ def get_pc_source_loc(thread):
     return (thread.GetIndexID(),) + resolve_line_entry(le)
   return None
 
-
 def get_bploc_tuples(bp):
-  """ Returns a list of tuples (filename, line) where a breakpoint was resolved. """
+  """ Returns a list of tuples (file, line) where a breakpoint was resolved. """
   if not bp.IsValid():
     return []
   locs = []
@@ -53,3 +51,5 @@ def get_process_stat(target):
       if exit_status != -1:
         stat += ', exit status = %d' % exit_status
   return (proc, stat)
+
+# vim:et:ts=2:sw=2

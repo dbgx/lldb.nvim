@@ -136,3 +136,5 @@ class VimX:
 
     if has_mod:
       self.map_buffers(update_mapper)
+
+# vim:et:ts=2:sw=2

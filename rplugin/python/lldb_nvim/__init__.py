@@ -80,3 +80,5 @@ class Middleman(object):
   @neovim.rpc_export('watchswitch')
   def _watchpoint(self, var_name):
     pass # TODO create watchpoint from locals pane
+
+# vim:et:ts=2:sw=2

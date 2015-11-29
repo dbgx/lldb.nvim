@@ -1,13 +1,12 @@
 # Manages Vim user interface.
 #
-# FIXME: display watched expressions
-# FIXME: define interface for interactive panes, like catching enter
+# TODO: display watched expressions
+# TODO: define interface for interactive panes, like catching enter
 #        presses to change selected frame/thread...
-#
 
-import os, re
-from .vim_signs import *
-from .content_helper import *
+from os.path import exists as path_exists
+from . import lldb_utils as llu
+from .vim_signs import BPSign, PCSign
 
 class VimBuffers:
   _content_map = {
@@ -29,7 +28,7 @@ class VimBuffers:
     self.buf_map = {}
 
     # Currently shown signs
-    self.bp_signs = {} # maps (bufnr, line) -> <BreakpointSign object>
+    self.bp_signs = {} # maps (bufnr, line) -> <BPSign object>
     self.bp_list = {} # maps (bufnr, line) -> [<SBBreakpoint object>, ...]
     self.pc_signs = {}
     self.pc_cur_loc = None
@@ -56,7 +55,7 @@ class VimBuffers:
 
     # Show a PC marker for each thread
     for thread in process:
-      loc = get_pc_source_loc(thread)
+      loc = llu.get_pc_source_loc(thread)
       if not loc:
         # no valid source locations for PCs. hide all existing PC markers
         continue
@@ -64,7 +63,7 @@ class VimBuffers:
       (tid, fname, line) = loc
       self.logger.info("Got pc loc: %s" % repr(loc))
       is_selected = thread.GetIndexID() == process.GetSelectedThread().GetIndexID()
-      if os.path.exists(fname):
+      if path_exists(fname):
         bufnr = self.vimx.buffer_add(fname)
       else:
         continue
@@ -104,9 +103,9 @@ class VimBuffers:
 
     needed_bps = set()
     for bp in target.breakpoint_iter():
-      bplocs = get_bploc_tuples(bp)
+      bplocs = llu.get_bploc_tuples(bp)
       for (filepath, line) in bplocs:
-        if filepath and os.path.exists(filepath):
+        if filepath and path_exists(filepath):
           bufnr = self.vimx.buffer_add(filepath)
           key = (bufnr, line)
           needed_bps.add(key)
@@ -129,14 +128,14 @@ class VimBuffers:
 
     # Show all (new) breakpoint signs
     for (bufnr, line) in new_bps:
-      self.bp_signs[(bufnr, line)] = BreakpointSign(self.vimx, bufnr, line,
-                                                    self.pc_signs.has_key((bufnr, line)))
+      self.bp_signs[(bufnr, line)] = BPSign(self.vimx, bufnr, line,
+                                            self.pc_signs.has_key((bufnr, line)))
 
   def update_buffer(self, buf, target, commander):
     self.buf_map_check()
 
     command = self._content_map[buf]
-    proc_stat = get_process_stat(target)[1]
+    proc_stat = llu.get_process_stat(target)[1]
     success, output = commander(command)
     if not success and proc_stat:
       output = proc_stat
