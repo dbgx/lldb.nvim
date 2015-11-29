@@ -69,7 +69,8 @@ class VimBuffers:
       else:
         continue
 
-      sign = PCSign(self.vimx, bufnr, line, is_selected)
+      hidden = not is_selected and (bufnr, line) in self.pc_signs
+      sign = PCSign(self.vimx, bufnr, line, is_selected, hidden)
       self.pc_signs[(bufnr, line)] = sign
 
       if is_selected and self.pc_cur_loc != (bufnr, line):
