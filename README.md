@@ -69,10 +69,13 @@ Please leave a feedback at the gitter page:
 
 ## FAQ
 
-#### After the recent update, [command] stopped working!
+#### This plugin does not work / stopped working!!
 
-Have you tried `:UpdateRemotePlugins` and restarting Neovim? If you did, and
-the problem persists, please file a bug report (also see `:help lldb-bugs`).
+* Try `:UpdateRemotePlugins`, and restart Neovim.
+* Try running the test script `test/run.sh`, and see how it goes.
+  If you encounter an error during `import lldb`, see [this issue](https://github.com/critiqjo/lldb.nvim/issues/6#issuecomment-127192347).
+
+Please file a bug report (also see `:help lldb-bugs`) if the problem persists.
 
 #### The program counter is pointing to the wrong line in the source file at a breakpoint hit.
 
