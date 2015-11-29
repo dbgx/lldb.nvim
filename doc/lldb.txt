@@ -130,6 +130,43 @@ CUSTOMIZING                                             *lldb-customizing*
 
 ==============================================================================
 
+HIGHLIGHTING                                            *lldb-highlighting*
+
+To customize the highlighting of signs, use the following highlight groups:
+
+    *LLBreakpointSign*
+                      For breakpoint signs, links to |Type| by default.
+
+    *LLSelectedPCSign*
+                      For the selected program counter sign, links to |Debug|
+                      by default.
+
+    *LLUnselectedPCSign*
+                      For the unselected program counter sign, links to to
+                      |NonText| by default.
+
+Example: >
+    highlight LLBreakpointSign ctermfg=cyan guifg=cyan
+
+To customize highlighting for the line where a sign resides, you can use the
+following highlight groups:
+
+    *LLBreakpointLine*
+                      For breakpoint lines, unhighlighted by default.
+
+    *LLSelectedPCLine*
+                      For the current line of the selected program counter,
+                      links to |DiffText| by default.
+
+    *LLUnselectedPCLine*
+                      For the current line of the unselected program counter,
+                      links to |DiffChange| by default.
+
+Example: >
+    highlight LLSelectedPCLine ctermbg=DarkGrey guibg=DarkGrey
+
+==============================================================================
+
 COMMANDS                                                *lldb-commands*
 
                                                         *:LL*
