@@ -139,14 +139,15 @@ class Session:
 
 
   def mode_setup(self, mode):
+    """ Tear down the current mode, and switch to a new one. """
     if mode not in self.get_modes():
       self.vimx.log("Invalid mode!")
       return
     self.mode_teardown()
-    if 'setup' in self.state['modes'][mode]:
-      self.run_actions(self.state['modes'][mode]['setup'])
     self.internal['@mode'] = mode
     self.vimx.command("call call(g:lldb#session#mode_setup, ['%s'])" % mode)
+    if 'setup' in self.state['modes'][mode]:
+      self.run_actions(self.state['modes'][mode]['setup'])
     self.ctrl.update_buffers()
     if  self.help_flags["new"] and \
         self.help_flags["launch_prompt"] and \
