@@ -27,7 +27,7 @@ iface = Middleman(vim)
 
 from time import sleep
 delay = 1
-iface._session(['load'])
+iface._session(['load', 'lldb-nvim.json'])
 sleep(delay)
 iface._mode('debug')
 sleep(2*delay)
