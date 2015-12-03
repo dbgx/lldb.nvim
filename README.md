@@ -29,7 +29,7 @@ and communicates with the Neovim process using RPC calls.
 1. Using a plugin manager such as [vim-plug](https://github.com/junegunn/vim-plug):
 
    ```
-       Plug "critiqjo/lldb.nvim"
+       Plug 'critiqjo/lldb.nvim'
    ```
 
    Alternatively, clone this repo, and add the following line to your nvimrc:
