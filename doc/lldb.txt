@@ -15,13 +15,15 @@ CONTENTS                                                *lldb-contents*
     1. Introduction .................... |lldb-intro|
     2. Features ........................ |lldb-features|
     3. Getting Started ................. |lldb-start|
-    4. Commands ........................ |lldb-commands|
-    5. Mappings ........................ |lldb-mappings|
-    6. Session manipulation ............ |lldb-session|
-    7. License ......................... |lldb-license|
-    8. General guidelines .............. |lldb-guidelines|
-    9. Issues and Bugs ................. |lldb-bugs|
-   10. Contributing .................... |lldb-contributing|
+    4. Customizing ..................... |lldb-customizing|
+    5. Highlighting .................... |lldb-highlighting|
+    6. Commands ........................ |lldb-commands|
+    7. Mappings ........................ |lldb-mappings|
+    8. Session manipulation ............ |lldb-session|
+    9. General guidelines .............. |lldb-guidelines|
+   10. License ......................... |lldb-license|
+   11. Issues and Bugs ................. |lldb-bugs|
+   12. Contributing .................... |lldb-contributing|
 
 
 Original Author:    Daniel Malea <daniel.malea@intel.com>
@@ -34,8 +36,7 @@ License:            Same terms as Vim itself (see |license|)
 INTRODUCTION                                            *lldb-intro*
 
 The plugin provides an interface to the lldb debugger allowing for convenient
-debugging sessions inside your favorite editor. See |lldb-features| for a
-complete set of features.
+debugging sessions inside your favorite editor.
 
 This plugin started out as a fork of
 
@@ -47,10 +48,8 @@ http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/
 
 A lot of refactoring, performance improvements, and many new features were
 added which would have been very hard (if not impossible) to implement as a
-standard Vim plugin.
-
-This plugin takes advantage of Neovim's job API to spawn a separate process
-and communicates with the Neovim process using RPC calls.
+standard Vim plugin. The plugin takes advantage of Neovim's job API to spawn a
+separate process and communicates with the Neovim process using RPC calls.
 
 ==============================================================================
 
@@ -110,23 +109,30 @@ Alternatively, you can kill it using:
 
 CUSTOMIZING                                             *lldb-customizing*
 
- *g:lldb#session#file*
-                      Default session file name: 'lldb-nvim.json'
+                                                *g:lldb#session#file*
+g:lldb#session#file ~
+        Default session file name: `lldb-nvim.json`
 
- *g:lldb#session#mode_setup*
-                      Default layout setup function: 'lldb#layout#setup'
-                      This will be called every time a new mode is set up,
-                      with mode name as the first argument.
+                                                *g:lldb#session#mode_teardown*
+g:lldb#session#mode_teardown ~
+        Default layout teardown function: `lldb#layout#teardown`
+        This is called every time mode is switched, with the name of the old
+        mode as the first argument.
 
- *g:lldb#session#mode_teardown*
-                      Default layout teardown function: 'lldb#layout#teardown'
-                      Similar to mode_setup above.
+                                                *g:lldb#session#mode_setup*
+g:lldb#session#mode_setup ~
+        Default layout setup function: `lldb#layout#setup`
+        This is called every time mode is switched, right after
+        |g:lldb#session#mode_teardown| is called, with the name of the new
+        mode as the first argument.
 
- *g:lldb#sign#bp_symbol*
-                      Default sign text for breakpoints: 'B>'
+                                                *g:lldb#sign#bp_symbol*
+g:lldb#sign#bp_symbol ~
+        Default sign text for breakpoints: `B>`
 
- *g:lldb#sign#pc_symbol*
-                      Default sign text for program counter: '->'
+                                                *g:lldb#sign#pc_symbol*
+g:lldb#sign#pc_symbol ~
+        Default sign text for program counter: `->`
 
 ==============================================================================
 
@@ -134,16 +140,16 @@ HIGHLIGHTING                                            *lldb-highlighting*
 
 To customize the highlighting of signs, use the following highlight groups:
 
-    *LLBreakpointSign*
-                      For breakpoint signs, links to |Type| by default.
+                                                *hl-LLBreakpointSign*
+LLBreakpointSign        For breakpoint signs, links to |Type| by default.
 
-    *LLSelectedPCSign*
-                      For the selected program counter sign, links to |Debug|
-                      by default.
+                                                *hl-LLSelectedPCSign*
+LLSelectedPCSign        For the selected program counter sign, links to |Debug|
+                        by default.
 
-    *LLUnselectedPCSign*
-                      For the unselected program counter sign, links to to
-                      |NonText| by default.
+                                                *hl-LLUnselectedPCSign*
+LLUnselectedPCSign      For the unselected program counter sign, links to
+                        |NonText| by default.
 
 Example: >
     highlight LLBreakpointSign ctermfg=cyan guifg=cyan
@@ -151,16 +157,16 @@ Example: >
 To customize highlighting for the line where a sign resides, you can use the
 following highlight groups:
 
-    *LLBreakpointLine*
-                      For breakpoint lines, unhighlighted by default.
+                                                *hl-LLBreakpointLine*
+LLBreakpointLine        For breakpoint lines, unhighlighted by default.
 
-    *LLSelectedPCLine*
-                      For the current line of the selected program counter,
-                      links to |DiffText| by default.
+                                                *hl-LLSelectedPCLine*
+LLSelectedPCLine        For the current line of the selected program counter,
+                        links to |DiffText| by default.
 
-    *LLUnselectedPCLine*
-                      For the current line of the unselected program counter,
-                      links to |DiffChange| by default.
+                                                *hl-LLUnselectedPCLine*
+LLUnselectedPCLine      For the current line of the unselected program counter,
+                        links to |DiffChange| by default.
 
 Example: >
     highlight LLSelectedPCLine ctermbg=DarkGrey guibg=DarkGrey
@@ -169,22 +175,26 @@ Example: >
 
 COMMANDS                                                *lldb-commands*
 
-                                                        *:LL*
-:LL {cmd}               Execute an arbitrary LLDB command {cmd} in the LLDB
-                        command interpreter.
-
-                                                        *:LLmode*
-:LLmode {mode}          Switch to {mode}, by tearing down the current mode,
-                        and executing the setup actions of {mode}
-
-                                                        *:LLrefresh*
-:LLrefresh              Updates all debugger signs and buffer contents.
-
-                                                        *:LLsession*
-:LLsession {cmd} ...    Execute a session related command.
+                                                *:LLsession*
+:LLsession {cmd} ...    Session manipulation command.
                         See |lldb-session| for more details.
 
-                                                        *:LLstdin*
+                                                *:LL*
+:LL {cmd}               Execute an arbitrary LLDB command {cmd} in the LLDB
+                        command interpreter. This is only defined after a
+                        session is created or loaded.
+
+                                                *:LLmode*
+:LLmode {mode}          Switch to {mode}. This first executes teardown
+                        commands defined in the session file for the current
+                        mode, then calls |g:lldb#session#mode_teardown|,
+                        followed by |g:lldb#session#mode_setup|, and finally
+                        executing the setup commands for the new mode.
+
+                                                *:LLrefresh*
+:LLrefresh              Updates all debugger signs and buffer contents.
+
+                                                *:LLstdin*
 :LLstdin [{arg}]        If no {arg} is specified, or if {arg} is `--raw`, an
                         |input()| prompt will show up. If `--raw` was not
                         specified, the input line will be suffixed with a
@@ -203,40 +213,48 @@ COMMANDS                                                *lldb-commands*
 
 MAPPINGS                                                *lldb-mappings*
 
-<Plug>LLBreakSwitch                             *<Plug>LLBreakSwitch*
-                        Insert breakpoint at cursor location.
+                                                *<Plug>LLBreakSwitch*
+<Plug>LLBreakSwitch     Insert breakpoint at cursor location.
+
+                                                *v_<Plug>LLStdInSelected*
+<Plug>LLStdInSelected   Put the selected text into the stdin of the process.
 
 I recommend setting the following maps:
 >
     nmap <M-b> <Plug>LLBreakSwitch
     vmap <F2> <Plug>LLStdInSelected
     nnoremap <F4> :LLstdin<CR>
-    nnoremap <S-F4> :LLstdin --raw<CR>
     nnoremap <F5> :LLmode debug<CR>
     nnoremap <S-F5> :LLmode code<CR>
     nnoremap <F8> :LL continue<CR>
     nnoremap <S-F8> :LL process interrupt<CR>
     nnoremap <F9> :LL print <C-R>=expand('<cword>')<CR>
-    vnoremap <F9> :<C-U>LL print <C-R>=lldb#util#get_selection()<CR>
+    vnoremap <F9> :<C-U>LL print <C-R>=lldb#util#get_selection()<CR><CR>
 <
 ==============================================================================
 
 SESSION MANIPULATION                                    *lldb-session*
 
-LLsession subcommands                           *:LLsession-subcommands*
+Right after a session is created or loaded, the first mode defined in the
+session file is setup.
 
-  new           Create a new session state based on a default template.
-  load {file}   Load session state described in {file}.
-                If {file} is not given, try to load |g:lldb#session#file|
-  show          Show the session file with latest changes.
-  reload        Reload the current session state, by first tearing down the
-                current mode and setting up the first defined mode.
-  bp-save       Save all the currently set breakpoints to the session state.
-  bp-set        Set breakpoints defined in the session state.
+                                                *:LLsession-subcommands*
+Subcommand      Description ~
+new             Create a new debug session based on a default template.
+load [path]     If `path` exists, create a debug session using it. If no `path`
+                argument was given, recursively look for a file with name
+                |g:lldb#session#file| in parent directories and use it
+                instead, if found.
+show            Show the session file with latest changes.
+reload          Reload the session file in use: discards the current debug
+                state, and parses the session file again.
+bp-save         Save all the currently set breakpoints to the session state.
+bp-set          Set breakpoints defined in the session state.
 
-The session file                                *lldb-session-file*
-
-See the json files in `examples` directory.
+                                                *lldb-session-file*
+See the json file(s) in `test` directory, or try out: >
+    :LLsession new
+    :LLsession show
 
 ==============================================================================
 
@@ -244,26 +262,24 @@ GENERAL GUIDELINES                                      *lldb-guidelines*
 
 Below are some random points that might make your debugging life easier:
 
-* LLDB completions will be relative to the parent directory of session file
+* The debugger instance/process stays in the parent directory of the loaded
+  session file, which should preferably be the project root. Consequently,
+  LLDB completions will also be relative to it.
 
-* Do not create multiple targets -- currently not supported
+* Working with multiple targets is currently not supported.
 
-* Try these out (in debug mode): `:LL help process` `:LL command history`
+* Try out (in debug mode): >
+    :LL help process
+    :LL command history
 
 * While in logs buffer, try pressing `i`, `d` or `q`
 
-* LLDB completions will be relative to the parent directory of session file.
-  This is because regardless of the pwd of Vim, the plugin process will always
-  be in the parent directory of the currently loaded session file.
+* Having a key-binding for `process interrupt` command will come in handy.
 
-* Target should be deleted when exiting debugging mode, so that it can be
-  re-added (after a compilation, may be) when re-entering debug mode.
-  - For compiling, try using `:NeomakeSh` from neomake plugin by benekastah.
+* For compiling from vim, try out the neomake plugin by benekastah: >
+    :NeomakeSh gcc -g -o targ %
 
-* If you have an external script, may I suggest moving all breakpoint
-  management commands to the session file.
-
-* Have a key-binding for `process interrupt` command; it will come in handy.
+* If you run into problems, do check out the FAQ section in `README.md`
 
 ==============================================================================
 
@@ -293,13 +309,13 @@ and post the log along with the bug report.
 
 CONTRIBUTING                                            *lldb-contributing*
 
-Fantastic! Check out the project issues page for ideas, and there are a lot of
-FIXMEs and TODOs springled across the codebase. If you have a feature idea,
-please report it as an issue, before starting to work on it.
+Awesome! Check out the Github issues page for ideas. There are a lot of FIXMEs
+and TODOs springled across the codebase. If you have a feature idea, please
+report it as an issue, before starting to work on it.
 
 Another great way to contribute would be to make this documentation more
 comprehensive, and easy to understand. Also, you could post a screencast, or
 an asciinema recording, or an interesting session file example in the gitter
-page; which might be included in the repo.
+page; which could be included in the repo.
 
  vim:tw=78:sw=4:ft=help:norl:
