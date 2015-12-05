@@ -24,19 +24,15 @@ class Session:
     return len(self.state) > 1 and '@file' in self.internal and '@mode' in self.internal
 
 
-  def bp_map_set(self, bpid, val):
-    self.bpid_map[bpid] = val
-
-
   def bp_map_auto(self, bp, fallback=None):
     """ Sets the value of bp.id key by trying to resolve bp to a single location;
         if not possible, sets the value to fallback
     """
     from .lldb_utils import get_bploc_tuples
     if bp.GetNumLocations() == 1:
-      self.bp_map_set(bp.id, get_bploc_tuples(bp)[0])
+      self.bpid_map[bp.id] = get_bploc_tuples(bp)[0]
     else:
-      self.bp_map_set(bp.id, fallback)
+      self.bpid_map[bp.id] = fallback
 
 
   def new_target(self, target):
@@ -64,10 +60,10 @@ class Session:
       if re.match(r'(b|tbreak|_regexp-t?break|) \S+:[0-9]+\s*$', cmd):
         self.bp_map_auto(bp, cmd)
       else:
-        self.bp_map_set(bpid, cmd)
+        self.bpid_map[bpid] = cmd
     elif len(new_bps) > 1: # from loading a script file?
       for bpid in new_bps:
-        self.bp_map_set(bpid, None)
+        self.bpid_map[bpid] = None
       self.logger.warn("Multiple new breakpoints!")
 
     if len(del_bps) > 0:
@@ -312,15 +308,18 @@ class Session:
       if self.isalive():
         import re
         sfile_bufnr = self.vimx.buffer_add(self.get_confpath())
+        self.vimx.command('exe "tab drop ".escape(bufname({0}), "$%# ")'
+                          .format(sfile_bufnr))
+
         json_str = json.dumps(self.state, indent=4, separators=(',', ': '))
         json_str = re.sub(r'\[\s*"(bp|ll|sh)",\s*"([^"]*)"\s*\]', r'[ "\1", "\2" ]', json_str)
         json_str = re.sub(r'(\[|[0-9]+,?)\s+(?=\]|[0-9]+)', r'\1 ', json_str)
+
         def json_show(b):
           if b.number == sfile_bufnr:
             b[:] = json_str.split('\n')
             raise StopIteration
-        self.vimx.command('exe "tab drop ".escape(bufname({0}), "$%# ")'
-                          .format(sfile_bufnr))
+
         self.vimx.map_buffers(json_show)
         if self.help_flags["new"] and self.help_flags["session_show"]:
           self.vimx.log('Save this file, and do `:LLsession reload` to load any changes made.')

@@ -60,8 +60,8 @@ class Controller(Thread):
       self.logger.critical("busy_stack < 0")
       self.busy_stack = 0
 
-  def safe_call(self, method, args=[], sync=False, timeout=None): # threadsafe
-    """ (Thread-safe) Call `method` with `args`. If `sync` is True, wait for
+  def safe_call(self, method, args=[], sync=False, timeout=None):
+    """ (thread-safe) Call `method` with `args`. If `sync` is True, wait for
         `method` to complete and return its value. If timeout is set and non-
         negative, and the `method` did not complete within `timeout` seconds,
         an EventLoopError is raised!
@@ -85,7 +85,7 @@ class Controller(Thread):
       raise EventLoopError("Dead event loop!")
 
   def safe_execute(self, tokens):
-    """ (Thread-safe) Executes an lldb command defined by a list of tokens.
+    """ (thread-safe) Executes an lldb command defined by a list of tokens.
         If a token contains white-spaces, they are escaped using backslash.
     """
     cmd = ' '.join([ t.replace(' ', '\\ ') for t in tokens ])
@@ -277,7 +277,9 @@ class Controller(Thread):
               self.out_queue.put(ret, block=False)
           except Exception:
             self.logger.critical(traceback.format_exc())
+
         elif event_matches(self._process.broadcaster):
+          # Dump stdout and stderr to logs buffer
           while True:
             out = self._process.GetSTDOUT(256)
             out += self._process.GetSTDERR(256)
@@ -301,12 +303,16 @@ class Controller(Thread):
                 self._proc_sigstop_count += 1
                 self.buffers.logs_append(u'\u2717Output limits exceeded! Sent SIGSTOP!\n')
               break
+          # end of dump while
           self.update_buffers()
+
       else: # Timed out
         to_count += 1
         if to_count > 172800: # in case WaitForEvent() does not wait!
           self.logger.critical('Broke the loop barrier!')
           break
+    # end of event-loop while
+
     self._dbg.Terminate()
     self._dbg = None
     self._sink.close()

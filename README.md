@@ -77,6 +77,14 @@ Please leave a feedback at the gitter page:
 
 Please file a bug report (also see `:help lldb-bugs`) if the problem persists.
 
+#### Which all languages does LLDB support other than C/C++?
+
+* Objective-C
+* Swift (also see [swift-lldb](https://github.com/apple/swift-lldb))
+* Go (build: `go build -gcflag '-N -l' <file>`)
+* Rust (build: `rustc -g <file>`)
+* more?
+
 #### The program counter is pointing to the wrong line in the source file at a breakpoint hit.
 
 Try clang instead of gcc (fingers crossed). See [clang comparison](http://clang.llvm.org/comparison.html#gcc):

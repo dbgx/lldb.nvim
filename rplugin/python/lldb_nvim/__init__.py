@@ -22,6 +22,8 @@ class Middleman(object):
     else:
       vim.command('call lldb#remote#init(%d)' % vim.channel_id)
 
+  # The only interface that is predefined in the remote plugin manifest file.
+  # The first execution of `:LLsession` initializes the remote part of the plugin.
   @neovim.command('LLsession', nargs='+', complete='customlist,lldb#session#complete')
   def _session(self, args):
     self.ctrl.safe_call(self.ctrl.session.handle, args)
