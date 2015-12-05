@@ -81,9 +81,9 @@ Please file a bug report (also see `:help lldb-bugs`) if the problem persists.
 
 * Objective-C
 * Swift (also see [swift-lldb](https://github.com/apple/swift-lldb))
-* Go (build: `go build -gcflag '-N -l' <file>`)
 * Rust (build: `rustc -g <file>`)
-* more?
+* Go (build: `go build -gcflag '-N -l' <file>`, see [this article's conclusion](http://blog.ralch.com/tutorial/golang-debug-with-lldb/#conclusion:1e1e92ac4b68191b3e5dc9a56a7ac9d2))
+* and more?
 
 #### The program counter is pointing to the wrong line in the source file at a breakpoint hit.
 
