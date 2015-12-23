@@ -11,10 +11,6 @@ handler.formatter = logging.Formatter(
 logging.root.addHandler(handler)
 logger.setLevel(logging.INFO)
 
-plugpath = os.path.realpath('../rplugin/python')
-sys.path.append(plugpath)
-from lldb_nvim import Middleman
-
 NV_SOCK = 'NVIM_LISTEN_ADDRESS' #'LLTEST_SOCK'
 if NV_SOCK not in os.environ:
   print '$%s not set!' % NV_SOCK
@@ -23,25 +19,32 @@ if NV_SOCK not in os.environ:
 import neovim
 vim = neovim.attach('socket', path=os.environ[NV_SOCK])
 vim.command('leftabove vsp ab.c')
-iface = Middleman(vim)
 
-from time import sleep
-delay = 1
-iface._session(['load', 'lldb-nvim.json'])
-sleep(delay)
-iface._mode('debug')
-sleep(2*delay)
-iface._exec('continue')
-sleep(delay)
-iface._stdin('4\n')
-sleep(delay)
-iface._exec('continue')
-sleep(delay)
-iface._mode('code')
+plugpath = os.path.realpath('../rplugin/python')
+sys.path.append(plugpath)
 
-#print ('Don\'t forget to execute iface._exit() before exiting.')
+try:
+  from lldb_nvim import Middleman
+  iface = Middleman(vim)
 
-iface._exit()
+  from time import sleep
+  delay = 1
+  iface._session(['load', 'lldb-nvim.json'])
+  sleep(delay)
+  iface._mode('debug')
+  sleep(2*delay)
+  iface._exec('continue')
+  sleep(delay)
+  iface._stdin('4\n')
+  sleep(delay)
+  iface._exec('continue')
+  sleep(delay)
+  iface._mode('code')
+  iface._exit() # Don't forget to exit!
+except:
+  import traceback
+  traceback.print_exc()
+
 print ('Debugger terminated! If you see no errors, everything\'s cool!')
 vim.command("wincmd w")
 vim.command("belowright sp test.log")

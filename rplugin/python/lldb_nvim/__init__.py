@@ -1,7 +1,10 @@
+import logging
 import neovim
 import check_lldb
 
-lldb_success = check_lldb.probe()
+if not check_lldb.probe():
+  logging.getLogger(__name__).critical('LLDB could not be imported!')
+  # ImportError will be raised in Controller import below.
 
 from .controller import Controller, EventLoopError
 from .vim_x import VimX
@@ -9,12 +12,8 @@ from .vim_x import VimX
 @neovim.plugin
 class Middleman(object):
   def __init__(self, vim):
-    import logging
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
-    if not lldb_success:
-      self.logger.critical('LLDB could not be imported!')
-      # ImportError will be raised in Controller init below.
     self.ctrl = Controller(VimX(vim))
     self.ctrl.start()
     if self.ctrl.vimx._vim_test:
