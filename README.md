@@ -69,6 +69,16 @@ Please leave a feedback at the gitter page:
 
 ## FAQ
 
+#### I use Mac! \[...\]
+
+You have 2 choices:
+
+1. Use system python as the default python2 plugin provider of Neovim. Choosing this means you can use the LLDB that comes with XCode inside Neovim too.
+   Read [this awesome blog post](http://blog.rplasil.name/2016/03/how-to-debug-neovim-python-remote-plugin.html) by @Quiark for more details.
+2. I don't like the system version of python -- it's 2.7.X, but I want 2.7.Y which has this feature Z.
+   No worries (I hope), just install the brew version of LLVM with LLDB and python support. (Good luck! You will need it!)
+   Also see #15 and #18 for all the gory details of troubleshooting.
+
 #### This plugin does not work / stopped working!!
 
 * Try `:UpdateRemotePlugins`, and restart Neovim.
