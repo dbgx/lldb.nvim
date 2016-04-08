@@ -6,11 +6,17 @@ class VimX:
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
     self._vim = vim
-    self._vim_test = not self._vim.session._session._is_running
+    if hasattr(vim._session, '_session'): # python-client version < 0.1.6
+      self._vim_test = not vim._session._session._is_running
+    elif hasattr(vim._session, '_is_running'): # python-client version >= 0.1.6
+      self._vim_test = not vim._session._is_running
+    else: # at the time of writing, this cannot happen
+      self._vim_test = False
     self.buffer_cache = {}
 
   def call(self, *args, **kwargs):
     vim = self._vim
+    self.logger.info(str(args))
     if 'async' not in kwargs or not kwargs['async']:
       if self._vim_test:
         return vim.call(*args, async=False)
