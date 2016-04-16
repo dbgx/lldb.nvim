@@ -281,8 +281,13 @@ class Controller(Thread):
         elif event_matches(self._process.broadcaster):
           # Dump stdout and stderr to logs buffer
           while True:
-            out = self._process.GetSTDOUT(256)
-            out += self._process.GetSTDERR(256)
+            out = ''
+            stdout = self._process.GetSTDOUT(256)
+            if stdout is not None:
+              out += stdout
+            stderr = self._process.GetSTDERR(256)
+            if stderr is not None:
+              out += stderr
             if len(out) == 0:
               break
             n_lines = self.buffers.logs_append(out)
