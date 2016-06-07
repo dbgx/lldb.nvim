@@ -58,6 +58,10 @@ class VimX:
     self.call('setbufvar', bufnr, '&bl', 1, async=True)
     return bufnr
 
+  def buffer_scroll_bottom(self, bufnr):
+    """ Scroll to bottom for every window that displays the given buffer in the current tab. """
+    self.call('lldb#util#buffer_do', bufnr, 'normal! G', async=True)
+
   def sign_jump(self, bufnr, sign_id):
     """ Try jumping to the specified sign_id in buffer with number bufnr. """
     self.call('lldb#layout#signjump', bufnr, sign_id, async=True)
