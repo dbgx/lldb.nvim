@@ -89,6 +89,7 @@ class VimBuffers:
         last_line = prefix + last_line
       lines = [prefix + line for line in lines[:-1]] + [ last_line ]
     self.vimx.update_noma_buffer(self.buf_map['logs'], lines, append=True)
+    self.vimx.buffer_scroll_bottom(self.buf_map['logs'])
     return len(lines) - 1
 
   def update_breakpoints(self, target, hard_update=False):
