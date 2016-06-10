@@ -8,6 +8,38 @@ function! s:logs_clear()
   endif
 endfun
 
+" Given the regex, extracts the match from the current line in the buffer.
+" If there's no match, the fallback_str is returned.
+function! s:matchstr_with_fallback(line, regex, fallback_str)
+  let matched = matchstr(a:line, a:regex)
+  if matched == ""
+    return a:fallback_str
+  else
+    return matched
+  endif
+endfun
+
+" Returns [thread_id, frame_id] corresponding to the line in the backtrace buffer.
+" If any entry of the pair has no result, empty string will be used.
+function! lldb#layout#backtrace_retrieve()
+  let frame_idx_pattern = '^\s*\*\= frame #\zs\d\+'
+  let thread_idx_pattern = '^\s*\*\= thread #\zs\d\+'
+  let frame_id = s:matchstr_with_fallback(getline('.'), frame_idx_pattern, '-1')
+  let thread_id = s:matchstr_with_fallback(getline(line('.') - frame_id - 1), thread_idx_pattern, '')
+  if frame_id == '-1'
+    let frame_id = ''
+  endif
+  return [thread_id, frame_id]
+endfun
+
+" Returns breakpoint id correnponding to the line in the breakpoint buffer.
+" If the result is invalid, empty string will be returned.
+function! lldb#layout#breakpoint_retrieve()
+  let bp_idx_pattern = '^\s*\zs\d\+\.\=\d*'
+  let frame_id = s:matchstr_with_fallback(getline('.'), bp_idx_pattern, '')
+  return frame_id
+endfun
+
 function! lldb#layout#init_buffers()
   let s:buffers = [ 'backtrace', 'breakpoints', 'disassembly',
                   \ 'locals', 'logs', 'registers', 'threads' ]
@@ -34,6 +66,14 @@ function! lldb#layout#init_window(width, split, bnr)
     nnoremap <buffer> i :call lldb#remote#stdin_prompt()<CR>
     nnoremap <silent> <buffer> <nowait> d :call <SID>logs_clear()<CR>
     nnoremap <silent> <buffer> <nowait> q :drop #<CR>
+  endif
+  if s:buffer_map['backtrace'] == a:bnr || s:buffer_map['threads'] == a:bnr
+    nnoremap <silent> <buffer> <CR>
+            \ :call lldb#remote#llnotify("select_thread_and_frame", lldb#layout#backtrace_retrieve())<CR>
+  endif
+  if s:buffer_map['breakpoints'] == a:bnr
+    nnoremap <silent> <buffer> <nowait> x
+            \ :call lldb#remote#llnotify("breakdelete", lldb#layout#breakpoint_retrieve())<CR>
   endif
 endfun
 

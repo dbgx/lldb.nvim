@@ -213,6 +213,22 @@ class Controller(Thread):
     else:
       self.bp_set_line(self.vimx.get_buffer_name(bufnr), line)
 
+  def do_select_thread_and_frame(self, thread_idx, frame_idx):
+    """ Select the given thread and frame by index (string).
+        If the index is empty, the corresponding action is skipped.
+    """
+    if thread_idx:
+      self._process.SetSelectedThreadByIndexID(int(thread_idx))
+    if frame_idx:
+      self._process.GetSelectedThread().SetSelectedFrame(int(frame_idx))
+    if thread_idx or frame_idx:
+      self.update_buffers()
+
+  def do_breakdelete(self, bp_id):
+    """ Delete a breakpoint by id """
+    if bp_id:
+      self.exec_command("breakpoint delete {}".format(bp_id))
+
   def put_stdin(self, instr):
     """ Call PutSTDIN() of process with instr. """
     if self._process is not None:
