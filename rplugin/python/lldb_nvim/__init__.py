@@ -70,9 +70,20 @@ class Middleman(object):
       self.logger.warn(str(e))
       return []
 
+  @neovim.rpc_export('select_thread_and_frame')
+  def _select_thread_and_frame(self, thread_and_frame_idx):
+    if thread_and_frame_idx[0]:
+      self.ctrl.safe_execute(['thread', 'select', thread_and_frame_idx[0]])
+    if thread_and_frame_idx[1]:
+      self.ctrl.safe_execute(['frame', 'select', thread_and_frame_idx[1]])
+
   @neovim.rpc_export('breakswitch')
   def _breakswitch(self, bufnr, line):
     self.ctrl.safe_call(self.ctrl.do_breakswitch, [bufnr, line])
+
+  @neovim.rpc_export('breakdelete')
+  def _breakdelete(self, bp_id):
+    self.ctrl.safe_call(self.ctrl.do_breakdelete, [bp_id])
 
   @neovim.rpc_export('refresh')
   def _refresh(self):

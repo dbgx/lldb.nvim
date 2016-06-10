@@ -213,6 +213,11 @@ class Controller(Thread):
     else:
       self.bp_set_line(self.vimx.get_buffer_name(bufnr), line)
 
+  def do_breakdelete(self, bp_id):
+    """ Delete a breakpoint by id """
+    if bp_id:
+      self.exec_command("breakpoint delete {}".format(bp_id))
+
   def put_stdin(self, instr):
     """ Call PutSTDIN() of process with instr. """
     if self._process is not None:
