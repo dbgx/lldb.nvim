@@ -24,8 +24,9 @@ endfun
 function! lldb#layout#backtrace_retrieve()
   let frame_idx_pattern = '^\s*\*\= frame #\zs\d\+'
   let thread_idx_pattern = '^\s*\*\= thread #\zs\d\+'
-  let frame_id = s:matchstr_with_fallback(getline('.'), frame_idx_pattern, '-1')
-  let thread_id = s:matchstr_with_fallback(getline(line('.') - frame_id - 1), thread_idx_pattern, '')
+  let frame_id = matchstr(getline('.'), frame_idx_pattern)
+  let line_offset = frame_id == '' ? -1 : +frame_id
+  let thread_id = matchstr(getline(line('.') - line_offset - 1), thread_idx_pattern)
   if frame_id == '-1'
     let frame_id = ''
   endif
@@ -36,7 +37,7 @@ endfun
 " If the result is invalid, empty string will be returned.
 function! lldb#layout#breakpoint_retrieve()
   let bp_idx_pattern = '^\s*\zs\d\+\.\=\d*'
-  let frame_id = s:matchstr_with_fallback(getline('.'), bp_idx_pattern, '')
+  let frame_id = matchstr(getline('.'), bp_idx_pattern)
   return frame_id
 endfun
 
@@ -66,14 +67,12 @@ function! lldb#layout#init_window(width, split, bnr)
     nnoremap <buffer> i :call lldb#remote#stdin_prompt()<CR>
     nnoremap <silent> <buffer> <nowait> d :call <SID>logs_clear()<CR>
     nnoremap <silent> <buffer> <nowait> q :drop #<CR>
-  endif
-  if s:buffer_map['backtrace'] == a:bnr || s:buffer_map['threads'] == a:bnr
+  elseif s:buffer_map['backtrace'] == a:bnr || s:buffer_map['threads'] == a:bnr
     nnoremap <silent> <buffer> <CR>
-            \ :call lldb#remote#llnotify("select_thread_and_frame", lldb#layout#backtrace_retrieve())<CR>
-  endif
-  if s:buffer_map['breakpoints'] == a:bnr
+            \ :call lldb#remote#__notify("select_thread_and_frame", lldb#layout#backtrace_retrieve())<CR>
+  elseif s:buffer_map['breakpoints'] == a:bnr
     nnoremap <silent> <buffer> <nowait> x
-            \ :call lldb#remote#llnotify("breakdelete", lldb#layout#breakpoint_retrieve())<CR>
+            \ :call lldb#remote#__notify("breakdelete", lldb#layout#breakpoint_retrieve())<CR>
   endif
 endfun
 
