@@ -190,10 +190,21 @@ class Controller(Thread):
 
     return changes
 
-  def do_disassemble(self, cmd):
-    """ Change the `disassembly` buffer command and update it. """
-    self.buffers._content_map['disassembly'] = cmd
-    self.update_buffers(buf='disassembly')
+  def change_buffer_cmd(self, buf, cmd):
+    """ Change a buffer command and update it. """
+    self.buffers._content_map[buf] = cmd
+    self.update_buffers(buf=buf)
+    if self._target is not None:
+      self.vimx.command('drop [lldb]%s' % buf)
+
+  def do_btswitch(self):
+    """ Switch backtrace command to show all threads. """
+    cmd = self.buffers._content_map['backtrace']
+    if cmd != 'bt all':
+      cmd = 'bt all'
+    else:
+      cmd = 'bt'
+    self.change_buffer_cmd('backtrace', cmd)
 
   def bp_set_line(self, spath, line):
     from os.path import abspath
@@ -212,6 +223,11 @@ class Controller(Thread):
       self.exec_command("breakpoint " + args)
     else:
       self.bp_set_line(self.vimx.get_buffer_name(bufnr), line)
+
+  def do_breakdelete(self, bp_id):
+    """ Delete a breakpoint by id """
+    if bp_id:
+      self.exec_command("breakpoint delete {}".format(bp_id))
 
   def put_stdin(self, instr):
     """ Call PutSTDIN() of process with instr. """
