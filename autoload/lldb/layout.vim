@@ -68,6 +68,12 @@ function! lldb#layout#init_window(width, split, bnr)
     nnoremap <silent> <buffer> <nowait> d :call <SID>logs_clear()<CR>
     nnoremap <silent> <buffer> <nowait> q :drop #<CR>
   elseif s:buffer_map['backtrace'] == a:bnr || s:buffer_map['threads'] == a:bnr
+    if s:buffer_map['backtrace'] == a:bnr
+      nnoremap <silent> <buffer> a :call lldb#remote#__notify("btswitch")<CR>
+      nnoremap <silent> <buffer> t :drop [lldb]threads<CR>
+    else
+      nnoremap <silent> <buffer> a :drop [lldb]backtrace<CR>
+    endif
     nnoremap <silent> <buffer> <CR>
             \ :call lldb#remote#__notify("select_thread_and_frame", lldb#layout#backtrace_retrieve())<CR>
   elseif s:buffer_map['breakpoints'] == a:bnr

@@ -197,6 +197,15 @@ class Controller(Thread):
     if self._target is not None:
       self.vimx.command('drop [lldb]%s' % buf)
 
+  def do_btswitch(self):
+    """ Switch backtrace command to show all threads. """
+    cmd = self.buffers._content_map['backtrace']
+    if cmd != 'bt all':
+      cmd = 'bt all'
+    else:
+      cmd = 'bt'
+    self.change_buffer_cmd('backtrace', cmd)
+
   def bp_set_line(self, spath, line):
     from os.path import abspath
     fpath = abspath(spath).encode('ascii', 'ignore')
