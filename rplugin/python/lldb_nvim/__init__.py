@@ -77,6 +77,10 @@ class Middleman(object):
     if thread_and_frame_idx[1]:
       self.ctrl.safe_execute(['frame', 'select', thread_and_frame_idx[1]])
 
+  @neovim.rpc_export('btswitch')
+  def _btswitch(self):
+    self.ctrl.safe_call(self.ctrl.do_btswitch)
+
   @neovim.rpc_export('breakswitch')
   def _breakswitch(self, bufnr, line):
     self.ctrl.safe_call(self.ctrl.do_breakswitch, [bufnr, line])
