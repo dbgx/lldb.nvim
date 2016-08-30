@@ -29,7 +29,7 @@ CONTENTS                                                *lldb-contents*
 Original Author:    Daniel Malea <daniel.malea@intel.com>
 Forked by:          Tobias Pflug <tobias.pflug@gmail.com>
 Maintainer:         John C F <john.ch.fr@gmail.com>
-License:            Same terms as Vim itself (see |license|)
+License:            Apache 2.0 (with some parts under the Vim |license|)
 
 ==============================================================================
 
@@ -285,7 +285,8 @@ Below are some random points that might make your debugging life easier:
 
 LICENSE                                                 *lldb-license*
 
-Same as Vim itself. See |license|.
+Primarily licensed under Apache 2.0 with some parts under the Vim |license|.
+See `LICENSE` file included in the source directory for more details.
 
 ==============================================================================
 
