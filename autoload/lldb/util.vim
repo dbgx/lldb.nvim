@@ -10,7 +10,7 @@ endfun
 
 function! lldb#util#buffer_do(bufnr, cmd)
   let old_wnr = winnr()
-  for wnr in range(winnr('$'))
+  for wnr in range(1, winnr('$') + 1)
     if winbufnr(wnr) == a:bufnr
       exe wnr . "windo " . a:cmd
     endif
