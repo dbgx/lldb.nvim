@@ -43,7 +43,7 @@ class Controller(Thread):
 
     self.vimx = vimx
     self.busy_stack = 0 # when > 0, buffers are not updated
-    self.buffers = VimBuffers(vimx)
+    self.buffers = VimBuffers(self, vimx)
     self.session = Session(self, vimx)
 
     super(Controller, self).__init__() # start the thread
@@ -132,11 +132,10 @@ class Controller(Thread):
     """
     if self.is_busy():
       return
-    commander = self.get_command_result
     if buf is None:
-      self.buffers.update(self._target, commander)
+      self.buffers.update(self._target)
     else:
-      self.buffers.update_buffer(buf, self._target, commander)
+      self.buffers.update_buffer(buf, self._target)
 
   def get_state_changes(self):
     """ Get a value denoting how target, process, and/or breakpoint have changed.
