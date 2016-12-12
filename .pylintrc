@@ -1,0 +1,5 @@
+[FORMAT]
+max-line-length = 99
+indent-string='  '
+indent-after-paren=2
+disable=locally-disabled,locally-enabled,missing-docstring,invalid-name,duplicate-code,fixme

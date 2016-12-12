@@ -1,8 +1,12 @@
+from __future__ import (absolute_import, division, print_function)
+
 from collections import OrderedDict
 from time import sleep
 import json
 
-class Session:
+__metaclass__ = type  # pylint: disable=invalid-name
+
+class Session:  # pylint: disable=too-many-instance-attributes
   def __init__(self, ctrl, vimx):
     import logging
     self.logger = logging.getLogger(__name__)
@@ -13,9 +17,7 @@ class Session:
     self.state = OrderedDict()
     self.internal = {}
     self.json_decoder = json.JSONDecoder(object_pairs_hook=OrderedDict)
-    self.help_flags = { "new": False,
-                        "launch_prompt": True,
-                        "session_show": True }
+    self.help_flags = {"new": False, "launch_prompt": True, "session_show": True}
     self.bpid_map = {}
 
 
@@ -41,10 +43,10 @@ class Session:
     if target.GetNumBreakpoints() > 0:
       self.logger.warn("New target has breakpoints!")
       for bp in target.breakpoint_iter(): # patch up
-        self.bp_map_auto(bpid)
+        self.bp_map_auto(bp)
 
 
-  def bp_changed(self, cmd, bp_iter):
+  def bp_changed(self, cmd, bp_iter):  # pylint: disable=too-many-branches
     import re
     old_bps = set(self.bpid_map.keys())
     cur_bps = set()
@@ -70,11 +72,11 @@ class Session:
     if len(del_bps) > 0:
       for bpid in del_bps:
         del self.bpid_map[bpid]
-      self.logger.info("Deleted breakpoints %s!" % repr(list(del_bps)))
+      self.logger.info("Deleted breakpoints %s!", repr(list(del_bps)))
 
 
   def bp_set(self):
-    if self.ctrl._target is None:
+    if self.ctrl.target is None:
       self.vimx.log("Setting breakpoints requires a target!")
       return
     for key, vals in self.state['breakpoints'].items():
@@ -86,8 +88,8 @@ class Session:
           self.ctrl.bp_set_line(key, l)
 
 
-  def bp_save(self):
-    file_bp_map = { "@ll": [] }
+  def bp_save(self):  # pylint: disable=too-many-branches
+    file_bp_map = {"@ll": []}
     for bp_val in self.bpid_map.values():
       if isinstance(bp_val, basestring):
         file_bp_map["@ll"].append(bp_val)
@@ -97,8 +99,8 @@ class Session:
         if relpath in file_bp_map:
           file_bp_map[relpath].append(line)
         else:
-          file_bp_map[relpath] = [ line ]
-    for key in file_bp_map.keys():
+          file_bp_map[relpath] = [line]
+    for key in file_bp_map:
       if key != "@ll":
         file_bp_map[key] = sorted(set(file_bp_map[key]))
     self.state['breakpoints'] = file_bp_map
@@ -108,7 +110,7 @@ class Session:
     return s.format(**self.state['variables'])
 
 
-  def run_actions(self, actions):
+  def run_actions(self, actions):  # pylint: disable=too-many-branches
     self.ctrl.busy_more()
     for action in actions:
       if isinstance(action, basestring):
@@ -146,7 +148,7 @@ class Session:
     if 'setup' in self.state['modes'][mode]:
       self.run_actions(self.state['modes'][mode]['setup'])
     self.ctrl.update_buffers()
-    if  self.help_flags["new"] and \
+    if self.help_flags["new"] and \
         self.help_flags["launch_prompt"] and \
         self.internal['@mode'] == 'debug':
       sleep(0.4)
@@ -203,7 +205,7 @@ class Session:
     return True
 
 
-  def parse_and_load(self, conf_str):
+  def parse_and_load(self, conf_str):  # pylint: disable=too-many-branches
     # TODO if there is a nice toml encoder available, add support for it
     state = self.json_decoder.decode(conf_str)
     if not isinstance(state, dict):
@@ -213,7 +215,7 @@ class Session:
       if key not in state:
         state[key] = {}
 
-    for key in state.keys():
+    for key in state:
       if key == "variables":
         pass # TODO check validity
       elif key == "modes":
@@ -232,7 +234,7 @@ class Session:
     self.mode_setup(self.state["modes"].keys()[0])
 
 
-  def handle(self, cmd, *args):
+  def handle(self, cmd, *args):  # pylint: disable=too-many-return-statements,too-many-branches
     """ Handler for :LLsession commands. """
     if cmd == 'new':
       if self.isalive() and self.vimx.eval("lldb#session#discard_prompt()") == 0:
@@ -291,7 +293,7 @@ class Session:
         self.vimx.log("Too many arguments!")
         return
 
-      if  self.isalive() and cmd == 'load' and \
+      if self.isalive() and cmd == 'load' and \
           self.vimx.eval("lldb#session#discard_prompt()") == 0:
         self.vimx.log("Session left unchanged!", 0)
         return

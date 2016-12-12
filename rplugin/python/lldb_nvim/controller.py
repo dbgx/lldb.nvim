@@ -1,14 +1,19 @@
-import lldb
+from __future__ import (absolute_import, division, print_function)
+
 from threading import Thread
 from Queue import Queue, Empty, Full
+
+import lldb
 
 from .vim_buffers import VimBuffers
 from .session import Session
 
+__metaclass__ = type  # pylint: disable=invalid-name
+
 class EventLoopError(Exception):
   pass
 
-class Controller(Thread):
+class Controller(Thread):  # pylint: disable=too-many-instance-attributes
   """ Thread object that handles LLDB events and commands. """
 
   CTRL_VOICE = 238 # doesn't matter what this is
@@ -34,8 +39,11 @@ class Controller(Thread):
     self._trx = lldb.SBBroadcaster("the_mouth") # transmitter for user events
     self._trx.AddListener(self._rcx, self.CTRL_VOICE)
 
-    self._target = None
+    self.target = None
     self._process = None
+    self._proc_cur_line_len = 0
+    self._proc_lines_count = 0
+    self._proc_sigstop_count = 0
     self._num_bps = 0
 
     self.in_queue = Queue(maxsize=2)
@@ -60,7 +68,7 @@ class Controller(Thread):
       self.logger.critical("busy_stack < 0")
       self.busy_stack = 0
 
-  def safe_call(self, method, args=[], sync=False, timeout=None):
+  def safe_call(self, method, args=None, sync=False, timeout=None):
     """ (thread-safe) Call `method` with `args`. If `sync` is True, wait for
         `method` to complete and return its value. If timeout is set and non-
         negative, and the `method` did not complete within `timeout` seconds,
@@ -73,7 +81,7 @@ class Controller(Thread):
       self.out_queue.get() # clean
 
     try:
-      self.in_queue.put((method, args, sync), block=False)
+      self.in_queue.put((method, args if args else [], sync), block=False)
       interrupt = lldb.SBEvent(self.CTRL_VOICE, "the_sound")
       self._trx.BroadcastEvent(interrupt)
       if sync:
@@ -88,7 +96,7 @@ class Controller(Thread):
     """ (thread-safe) Executes an lldb command defined by a list of tokens.
         If a token contains white-spaces, they are escaped using backslash.
     """
-    cmd = ' '.join([ t.replace(' ', '\\ ') for t in tokens ])
+    cmd = ' '.join([t.replace(' ', '\\ ') for t in tokens])
     self.safe_call(self.exec_command, [cmd])
 
   def safe_exit(self):
@@ -105,7 +113,7 @@ class Controller(Thread):
 
     if arg == line and line != '':
       # provide all possible completions when completing 't', 'b', 'di' etc.
-      num = self._ipreter.HandleCompletion('', 0, 1, -1, result)
+      self._ipreter.HandleCompletion('', 0, 1, -1, result)
       cands = ['']
       for x in result:
         if x == line:
@@ -113,7 +121,7 @@ class Controller(Thread):
         elif x.startswith(line):
           cands.append(x)
     else:
-      num = self._ipreter.HandleCompletion(line, pos, 1, -1, result)
+      self._ipreter.HandleCompletion(line, pos, 1, -1, result)
       cands = [x for x in result]
 
     if len(cands) > 1:
@@ -133,11 +141,11 @@ class Controller(Thread):
     if self.is_busy():
       return
     if buf is None:
-      self.buffers.update(self._target)
+      self.buffers.update(self.target)
     else:
-      self.buffers.update_buffer(buf, self._target)
+      self.buffers.update_buffer(buf, self.target)
 
-  def get_state_changes(self):
+  def get_state_changes(self):  # pylint: disable=too-many-branches
     """ Get a value denoting how target, process, and/or breakpoint have changed.
         If a new process found, add our listener to its broadcaster.
     """
@@ -145,16 +153,16 @@ class Controller(Thread):
     if self._dbg.GetNumTargets() > 1:
       return self.BAD_STATE
 
-    if self._target is None or not self._target.IsValid():
+    if self.target is None or not self.target.IsValid():
       target = self._dbg.GetSelectedTarget()
       if target.IsValid():
         changes = self.TARG_NEW
-        self._target = target
-      elif self._target is not None:
+        self.target = target
+      elif self.target is not None:
         changes = self.TARG_DEL
-        self._target = None
+        self.target = None
 
-    if self._target is None:
+    if self.target is None:
       if self._process is not None:
         changes |= self.PROC_DEL
         self._process = None
@@ -164,14 +172,16 @@ class Controller(Thread):
       return changes
 
     if self._process is None or not self._process.IsValid():
-      process = self._target.process
+      process = self.target.process
       if process.IsValid():
         changes |= self.PROC_NEW
         self._process = process
-        process.broadcaster.AddListener(self._rcx,
-            lldb.SBProcess.eBroadcastBitStateChanged | \
-            lldb.SBProcess.eBroadcastBitSTDOUT | \
-            lldb.SBProcess.eBroadcastBitSTDERR)
+        process.broadcaster.AddListener(
+          self._rcx,
+          lldb.SBProcess.eBroadcastBitStateChanged |
+          lldb.SBProcess.eBroadcastBitSTDOUT |
+          lldb.SBProcess.eBroadcastBitSTDERR
+        )
         self._proc_cur_line_len = 0
         self._proc_lines_count = 0
         self._proc_sigstop_count = 0
@@ -180,7 +190,7 @@ class Controller(Thread):
         changes |= self.PROC_DEL
         self._process = None
 
-    num_bps = self._target.GetNumBreakpoints()
+    num_bps = self.target.GetNumBreakpoints()
     if self._num_bps != num_bps:
       # TODO what if one was added and another deleted?
       changes |= self.BP_CHANGED
@@ -191,14 +201,14 @@ class Controller(Thread):
 
   def change_buffer_cmd(self, buf, cmd):
     """ Change a buffer command and update it. """
-    self.buffers._content_map[buf] = cmd
+    self.buffers.content_map[buf] = cmd
     self.update_buffers(buf=buf)
-    if self._target is not None:
+    if self.target is not None:
       self.vimx.command('drop [lldb]%s' % buf)
 
   def do_btswitch(self):
     """ Switch backtrace command to show all threads. """
-    cmd = self.buffers._content_map['backtrace']
+    cmd = self.buffers.content_map['backtrace']
     if cmd != 'bt all':
       cmd = 'bt all'
     else:
@@ -208,7 +218,7 @@ class Controller(Thread):
   def bp_set_line(self, spath, line):
     from os.path import abspath
     fpath = abspath(spath).encode('ascii', 'ignore')
-    bp = self._target.BreakpointCreateByLocation(fpath, line)
+    bp = self.target.BreakpointCreateByLocation(fpath, line)
     self.buffers.logs_append(u'\u2192(lldb-bp) %s:%d\n' % (spath, line))
     self.session.bp_map_auto(bp, (spath, line))
     self.update_buffers(buf='breakpoints')
@@ -216,7 +226,7 @@ class Controller(Thread):
   def do_breakswitch(self, bufnr, line):
     """ Switch breakpoint at the specified line in the buffer. """
     key = (bufnr, line)
-    if self.buffers.bp_list.has_key(key):
+    if key in self.buffers.bp_list:
       bps = self.buffers.bp_list[key]
       args = "delete %s" % " ".join([str(b.GetID()) for b in bps])
       self.exec_command("breakpoint " + args)
@@ -258,14 +268,14 @@ class Controller(Thread):
 
     state_changes = self.get_state_changes()
     if state_changes & self.TARG_NEW != 0:
-      self.session.new_target(self._target)
-    elif state_changes & self.BP_CHANGED != 0 and self._target is not None:
-      self.session.bp_changed(command, self._target.breakpoint_iter())
+      self.session.new_target(self.target)
+    elif state_changes & self.BP_CHANGED != 0 and self.target is not None:
+      self.session.bp_changed(command, self.target.breakpoint_iter())
 
     self.update_buffers()
     return success
 
-  def run(self):
+  def run(self):  # pylint: disable=too-many-branches,too-many-statements
     """ This thread's event loop. """
     import traceback
     to_count = 0
@@ -286,11 +296,11 @@ class Controller(Thread):
             method, args, sync = self.in_queue.get(block=False)
             if method is None:
               break
-            self.logger.info('Calling %s with %s' % (method.func_name, repr(args)))
+            self.logger.info('Calling %s with %s', method.func_name, repr(args))
             ret = method(*args)
             if sync:
               self.out_queue.put(ret, block=False)
-          except Exception:
+          except Exception:  # pylint: disable=broad-except
             self.logger.critical(traceback.format_exc())
 
         elif event_matches(self._process.broadcaster):

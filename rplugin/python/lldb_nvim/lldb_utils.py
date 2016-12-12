@@ -1,4 +1,8 @@
+from __future__ import (absolute_import, division, print_function)
+
 import os.path
+
+__metaclass__ = type  # pylint: disable=invalid-name
 
 def settings_target_source_map(commander):
   (success, output) = commander('settings show target.source-map')
