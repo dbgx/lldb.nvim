@@ -28,9 +28,10 @@ class Session:
     """ Sets the value of bp.id key by trying to resolve bp to a single location;
         if not possible, sets the value to fallback
     """
-    from .lldb_utils import get_bploc_tuples
+    from .lldb_utils import get_bploc_tuples, settings_target_source_map
     if bp.GetNumLocations() == 1:
-      self.bpid_map[bp.id] = get_bploc_tuples(bp)[0]
+      self.bpid_map[bp.id] = get_bploc_tuples(
+        bp, settings_target_source_map(self.ctrl.get_command_result))[0]
     else:
       self.bpid_map[bp.id] = fallback
 

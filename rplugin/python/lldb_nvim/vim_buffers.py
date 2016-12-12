@@ -18,9 +18,10 @@ class VimBuffers:
       "registers": "register read"
   }
 
-  def __init__(self, vimx):
+  def __init__(self, ctrl, vimx):
     """ Declare VimBuffers state variables """
     import logging
+    self.ctrl = ctrl
     self.vimx = vimx
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
@@ -55,7 +56,7 @@ class VimBuffers:
 
     # Show a PC marker for each thread
     for thread in process:
-      loc = llu.get_pc_source_loc(thread)
+      loc = llu.get_pc_source_loc(thread, self.ctrl.get_command_result)
       if not loc:
         # no valid source locations for PCs. hide all existing PC markers
         continue
@@ -103,8 +104,9 @@ class VimBuffers:
       return
 
     needed_bps = set()
+    source_map = llu.settings_target_source_map(self.ctrl.get_command_result)
     for bp in target.breakpoint_iter():
-      bplocs = llu.get_bploc_tuples(bp)
+      bplocs = llu.get_bploc_tuples(bp, source_map)
       for (filepath, line) in bplocs:
         if filepath and path_exists(filepath):
           bufnr = self.vimx.buffer_add(filepath)
@@ -132,12 +134,12 @@ class VimBuffers:
       self.bp_signs[(bufnr, line)] = BPSign(self.vimx, bufnr, line,
                                             self.pc_signs.has_key((bufnr, line)))
 
-  def update_buffer(self, buf, target, commander):
+  def update_buffer(self, buf, target):
     self.buf_map_check()
 
     command = self._content_map[buf]
     proc_stat = llu.get_process_stat(target)[1]
-    success, output = commander(command)
+    success, output = self.ctrl.get_command_result(command)
     if not success and proc_stat:
       output = proc_stat
     results = output.split('\n')
@@ -147,11 +149,11 @@ class VimBuffers:
 
     self.vimx.update_noma_buffer(self.buf_map[buf], results)
 
-  def update(self, target, commander):
+  def update(self, target):
     """ Updates signs, buffers, and possibly jumps to pc. """
     self.update_pc(target)
 
     for buf in self._content_map.keys():
-      self.update_buffer(buf, target, commander)
+      self.update_buffer(buf, target)
 
 # vim:et:ts=2:sw=2
