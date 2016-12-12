@@ -1,10 +1,11 @@
 # LLDB Neovim Frontend
 
-This plugin provides LLDB debugger integration for Neovim, featuring:
+This plugin provides LLDB debugger integration for Neovim ([demo gif][]) featuring:
 
-* Buffers showing debugger state: backtrace, breakpoints etc.
+* Elaborate view of debugger state
 * Event-based, non-blocking UI
-* Breakpoints persistence across exits
+* Persistence of breakpoints and more across exits (session saving)
+* Jump to code from Backtrace or Threads windows
 * Modal approach: define modes and replay commands during mode-switches
 * Tab-completion for LLDB commands
 
@@ -17,6 +18,8 @@ standard Vim plugin.
 
 This plugin takes advantage of Neovim's job API to spawn a separate process
 and communicates with the Neovim process using RPC calls.
+
+[demo gif]: https://cloud.githubusercontent.com/assets/1436441/9903483/6ed0e9cc-5c94-11e5-8e4e-ce3b389df2d5.gif
 
 ## Prerequisites
 
@@ -56,8 +59,7 @@ The plugin is being developed keeping 3 broad goals in mind:
 
 ## Getting started
 
-Here is a short screencast demonstrating the basics:
-[GIF](https://cloud.githubusercontent.com/assets/1436441/9903483/6ed0e9cc-5c94-11e5-8e4e-ce3b389df2d5.gif), [Youtube](https://youtu.be/rd654OxlmQs)
+Here is a short screencast demonstrating the basics: [Youtube](https://youtu.be/rd654OxlmQs)
 
 Also check out the getting started section from vim-docs (`:h lldb-start`).
 For easy navigation of docs, I suggest using [viewdoc plugin](https://github.com/powerman/vim-plugin-viewdoc) by powerman.
