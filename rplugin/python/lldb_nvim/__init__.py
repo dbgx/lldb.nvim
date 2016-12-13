@@ -1,23 +1,29 @@
+from __future__ import (absolute_import, division, print_function)
+
 import logging
 import neovim
-import check_lldb
+from . import check_lldb
+
+__metaclass__ = type  # pylint: disable=invalid-name
 
 if not check_lldb.probe():
   logging.getLogger(__name__).critical('LLDB could not be imported!')
   # ImportError will be raised in Controller import below.
 
-from .controller import Controller, EventLoopError
-from .vim_x import VimX
+# pylint: disable=wrong-import-position
+from .controller import Controller, EventLoopError # NOQA
+from .vim_x import VimX # NOQA
+# pylint: enable=wrong-import-position
 
-@neovim.plugin
-class Middleman(object):
+@neovim.plugin  # pylint: disable=too-few-public-methods
+class Middleman:
   def __init__(self, vim):
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
     self.ctrl = Controller(VimX(vim))
     self.ctrl.start()
-    if self.ctrl.vimx._vim_test:
-      print "Note: `:LL-` commands are not bound with this test instance"
+    if self.ctrl.vimx._vim_test:  # pylint: disable=protected-access
+      print("Note: `:LL-` commands are not bound with this test instance")
     else:
       vim.command('call lldb#remote#init(%d)' % vim.channel_id)
 
@@ -55,10 +61,9 @@ class Middleman(object):
   def _complete(self, arg, line, pos):
     # FIXME user-customizable timeout?
     try:
-      return self.ctrl.safe_call(self.ctrl.complete_command,
-                                 [arg, line, pos], True, timeout=3)
+      return self.ctrl.safe_call(self.ctrl.complete_command, [arg, line, pos], True, timeout=3)
     except EventLoopError as e:
-      self.logger.warn("%s on %s | %s" % (str(e), repr(line[:pos]), repr(line[pos:])))
+      self.logger.warn("%s on %s | %s", str(e), repr(line[:pos]), repr(line[pos:]))
       return []
 
   @neovim.rpc_export('get_modes', sync=True)
@@ -95,6 +100,6 @@ class Middleman(object):
 
   @neovim.rpc_export('watchswitch')
   def _watchpoint(self, var_name):
-    pass # TODO create watchpoint from locals pane
+    pass  # TODO create watchpoint from locals pane
 
 # vim:et:ts=2:sw=2

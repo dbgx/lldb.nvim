@@ -1,0 +1,18 @@
+dist: 'trusty'
+language: 'python'
+python:
+    - '2.7'
+virtualenv:
+    system_site_packages: true
+env:
+    - 'VERSION_LLDB=3.8'
+    - 'VERSION_LLDB=3.9'
+install:
+    - 'sudo add-apt-repository --yes "deb http://apt.llvm.org/trusty llvm-toolchain-trusty-${VERSION_LLDB} main"'
+    - 'curl http://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -'
+    - 'sudo apt-get update'
+    - 'sudo apt-get install --yes "python-lldb-${VERSION_LLDB}"'
+    - 'pip install neovim pylint flake8'
+script:
+    - 'flake8 rplugin/python/lldb_nvim'
+    - 'pylint rplugin/python/lldb_nvim'

@@ -1,4 +1,8 @@
+from __future__ import (absolute_import, division, print_function)
+
 from Queue import Queue
+
+__metaclass__ = type  # pylint: disable=invalid-name
 
 class VimX:
   def __init__(self, vim):
@@ -6,12 +10,14 @@ class VimX:
     self.logger = logging.getLogger(__name__)
     self.logger.setLevel(logging.INFO)
     self._vim = vim
+    # pylint: disable=protected-access
     if hasattr(vim._session, '_session'): # python-client version < 0.1.6
       self._vim_test = not vim._session._session._is_running
     elif hasattr(vim._session, '_is_running'): # python-client version >= 0.1.6
       self._vim_test = not vim._session._is_running
     else: # at the time of writing, this cannot happen
       self._vim_test = False
+    # pylint: enable=protected-access
     self.buffer_cache = {}
 
   def call(self, *args, **kwargs):
@@ -21,8 +27,7 @@ class VimX:
       if self._vim_test:
         return vim.call(*args, async=False)
       out_q = Queue()
-      vim.session.threadsafe_call(lambda:
-          out_q.put(vim.call(*args, async=False)))
+      vim.session.threadsafe_call(lambda: out_q.put(vim.call(*args, async=False)))
       return out_q.get()
     else:
       if self._vim_test:
@@ -86,6 +91,7 @@ class VimX:
     """
     vim = self._vim
     out_q = Queue(maxsize=1)
+
     def map_buffers_inner():
       mapped = []
       breaked = False
@@ -136,7 +142,7 @@ class VimX:
     if append:
       if len(content) == 0:
         return
-    elif  bufnr in self.buffer_cache \
+    elif bufnr in self.buffer_cache \
       and len(content) == len(self.buffer_cache[bufnr]):
       has_mod = False
       for l1, l2 in zip(content, self.buffer_cache[bufnr]):
