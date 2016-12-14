@@ -30,7 +30,6 @@ class Controller(Thread):  # pylint: disable=too-many-instance-attributes
         """ Creates the LLDB SBDebugger object and more! """
         import logging
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
 
         self._sink = open('/dev/null')
         self._dbg = lldb.SBDebugger.Create()
@@ -253,8 +252,12 @@ class Controller(Thread):  # pylint: disable=too-many-instance-attributes
             use exec_command instead.
         """
         result = lldb.SBCommandReturnObject()
+        cmd = command.encode('ascii', 'ignore')
 
-        self._ipreter.HandleCommand(command.encode('ascii', 'ignore'), result, add2hist)
+        self._ipreter.HandleCommand(cmd, result, add2hist)
+
+        self.logger.debug('(lldb) %s\n%s', cmd, result)
+
         return (result.Succeeded(),
                 result.GetOutput() if result.Succeeded() else result.GetError())
 

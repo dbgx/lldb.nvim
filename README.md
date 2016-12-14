@@ -12,10 +12,6 @@ This plugin provides LLDB debugger integration for Neovim ([demo gif][]) featuri
 This plugin started out as a fork of https://github.com/gilligan/vim-lldb
 which was forked from http://llvm.org/svn/llvm-project/lldb/trunk/utils/vim-lldb/
 
-A lot of refactoring, performance improvements, and many new features were
-added which would have been very hard (if not impossible) to implement as a
-standard Vim plugin.
-
 This plugin takes advantage of Neovim's job API to spawn a separate process
 and communicates with the Neovim process using RPC calls.
 
@@ -24,7 +20,7 @@ and communicates with the Neovim process using RPC calls.
 ## Prerequisites
 
 * [Neovim](https://github.com/neovim/neovim)
-* [Neovim python2-client](https://github.com/neovim/python-client) (release >= 0.0.38)
+* [Neovim python2-client](https://github.com/neovim/python-client) (release >= 0.1.6)
 * [LLDB](http://lldb.llvm.org/)
 
 ## Installation

@@ -9,32 +9,27 @@ class VimX:
 
     def __init__(self, vim):
         import logging
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
         self._vim = vim
         # pylint: disable=protected-access
-        if hasattr(vim._session, '_session'):  # python-client version < 0.1.6
-            self._vim_test = not vim._session._session._is_running
-        elif hasattr(vim._session, '_is_running'):  # python-client version >= 0.1.6
+        if hasattr(vim._session, '_is_running'):  # python-client version >= 0.1.6
             self._vim_test = not vim._session._is_running
-        else:  # at the time of writing, this cannot happen
+        else:
             self._vim_test = False
         # pylint: enable=protected-access
         self.buffer_cache = {}
 
     def call(self, *args, **kwargs):
         vim = self._vim
-        self.logger.info(str(args))
         if 'async' not in kwargs or not kwargs['async']:
             if self._vim_test:
                 return vim.call(*args, async=False)
             out_q = Queue()
-            vim.session.threadsafe_call(lambda: out_q.put(vim.call(*args, async=False)))
+            vim.async_call(lambda: out_q.put(vim.call(*args, async=False)))
             return out_q.get()
         else:
             if self._vim_test:
                 return vim.call(*args, async=True)
-            vim.session.threadsafe_call(lambda: vim.call(*args, async=True))
+            vim.async_call(lambda: vim.call(*args, async=True))
 
     def eval(self, expr, async=False):
         vim = self._vim
@@ -42,16 +37,16 @@ class VimX:
             return vim.eval(expr, async=async)
         if not async:
             out_q = Queue()
-            vim.session.threadsafe_call(lambda: out_q.put(vim.eval(expr, async=False)))
+            vim.async_call(lambda: out_q.put(vim.eval(expr, async=False)))
             return out_q.get()
         else:
-            vim.session.threadsafe_call(lambda: vim.eval(expr, async=True))
+            vim.async_call(lambda: vim.eval(expr, async=True))
 
     def command(self, cmd, async=True):
         vim = self._vim
         if self._vim_test:
             return vim.command(cmd, async=async)
-        vim.session.threadsafe_call(lambda: vim.command(cmd, async=async))
+        vim.async_call(lambda: vim.command(cmd, async=async))
 
     def log(self, msg, level=1):
         """ Execute echom in vim using appropriate highlighting. """
@@ -112,7 +107,7 @@ class VimX:
         if self._vim_test:
             map_buffers_inner()
         else:
-            vim.session.threadsafe_call(map_buffers_inner)
+            vim.async_call(map_buffers_inner)
         return out_q.get()
 
     def get_buffer_name(self, nr):

@@ -12,7 +12,6 @@ class Session:  # pylint: disable=too-many-instance-attributes
     def __init__(self, ctrl, vimx):
         import logging
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
 
         self.ctrl = ctrl
         self.vimx = vimx

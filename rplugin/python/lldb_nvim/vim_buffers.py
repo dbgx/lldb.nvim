@@ -29,7 +29,6 @@ class VimBuffers:  # pylint: disable=too-many-instance-attributes
         self.ctrl = ctrl
         self.vimx = vimx
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
 
         self.buf_map = {}
 
