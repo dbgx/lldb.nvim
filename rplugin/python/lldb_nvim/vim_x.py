@@ -8,7 +8,6 @@ __metaclass__ = type  # pylint: disable=invalid-name
 class VimX:
 
     def __init__(self, vim):
-        import logging
         self._vim = vim
         # pylint: disable=protected-access
         if hasattr(vim._session, '_is_running'):  # python-client version >= 0.1.6
