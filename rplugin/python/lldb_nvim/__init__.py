@@ -41,15 +41,16 @@ class Middleman:
 
     @neovim.rpc_export('exec')
     def _exec(self, *args):
-        if args[0] in ['di', 'dis', 'disassemble']:
+        if len(args) == 0:
+            self.ctrl.vimx.log("Usage :LL <lldb-command> [args...]", level=2)
+        elif args[0] in ['di', 'dis', 'disassemble']:
             self.ctrl.safe_call(self.ctrl.change_buffer_cmd, ['disassembly', ' '.join(args)])
         elif args[0] in ['bt', '_regexp-bt']:
             self.ctrl.safe_call(self.ctrl.change_buffer_cmd, ['backtrace', ' '.join(args)])
         else:
             self.ctrl.safe_execute(args)
-
-        if args[0] == 'help':
-            self.ctrl.vimx.command('drop [lldb]logs')
+            if args[0] == 'help':
+                self.ctrl.vimx.command('drop [lldb]logs')
 
     @neovim.rpc_export('stdin')
     def _stdin(self, strin):
