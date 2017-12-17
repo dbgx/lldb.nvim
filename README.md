@@ -28,7 +28,7 @@ and communicates with the Neovim process using RPC calls.
 1. Using a plugin manager such as [vim-plug](https://github.com/junegunn/vim-plug):
 
    ```
-       Plug 'critiqjo/lldb.nvim'
+       Plug 'dbgx/lldb.nvim'
    ```
 
    Alternatively, clone this repo, and add the following line to your nvimrc:
@@ -60,11 +60,6 @@ Here is a short screencast demonstrating the basics: [Youtube](https://youtu.be/
 Also check out the getting started section from vim-docs (`:h lldb-start`).
 For easy navigation of docs, I suggest using [viewdoc plugin](https://github.com/powerman/vim-plugin-viewdoc) by powerman.
 
-## General Discussion
-
-Please leave a feedback at the gitter page:
-[![Join the chat at https://gitter.im/critiqjo/lldb.nvim](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/critiqjo/lldb.nvim?utm\_source=badge&utm\_medium=badge&utm\_campaign=pr-badge&utm\_content=badge)
-
 ## FAQ
 
 #### I use Mac! \[...\]
@@ -75,13 +70,13 @@ You have 2 choices:
    Read [this awesome blog post](http://blog.rplasil.name/2016/03/how-to-debug-neovim-python-remote-plugin.html) by [@Quiark](https://github.com/Quiark) for more details.
 2. I don't like the system version of python -- it's 2.7.X, but I want 2.7.Y which has this feature Z.
    No worries (I hope), just install the brew version of LLVM with LLDB and python support. (Good luck! You will need it!)
-   Also see [#15](https://github.com/critiqjo/lldb.nvim/issues/15) and [#18](https://github.com/critiqjo/lldb.nvim/issues/18) for all the gory details of troubleshooting.
+   Also see [#15](https://github.com/dbgx/lldb.nvim/issues/15) and [#18](https://github.com/dbgx/lldb.nvim/issues/18) for all the gory details of troubleshooting.
 
 #### This plugin does not work / stopped working!!
 
 * Try `:UpdateRemotePlugins`, and restart Neovim.
 * Try running the test script `test/run.sh`, and see how it goes.
-  If you encounter an error during `import lldb`, see [#6 (comment)](https://github.com/critiqjo/lldb.nvim/issues/6#issuecomment-127192347).
+  If you encounter an error during `import lldb`, see [#6 (comment)](https://github.com/dbgx/lldb.nvim/issues/6#issuecomment-127192347).
 
 Please file a bug report (also see `:help lldb-bugs`) if the problem persists.
 
