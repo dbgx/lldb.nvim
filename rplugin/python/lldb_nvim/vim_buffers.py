@@ -146,6 +146,8 @@ class VimBuffers:  # pylint: disable=too-many-instance-attributes
         success, output = self.ctrl.get_command_result(command)
         if not success and proc_stat:
             output = proc_stat
+        if output is None:
+            output = ''
         results = output.split('\n')
 
         if buf == 'breakpoints':
