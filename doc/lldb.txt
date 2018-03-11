@@ -292,13 +292,9 @@ See `LICENSE` file included in the source directory for more details.
 
 FEEDBACK AND ISSUES                                     *lldb-bugs*
 
-Please give me your feedbacks about the ease-of-use and other aspects at:
-
-https://gitter.im/critiqjo/lldb.nvim
-
 If you run into a bug, use the Github issue tracker to report it:
 
-https://github.com/critiqjo/lldb.nvim/issues
+https://github.com/dbgx/lldb.nvim/issues
 
 It would be nice if you could set the following environment variable:
 >
