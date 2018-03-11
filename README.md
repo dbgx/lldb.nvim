@@ -1,5 +1,9 @@
 # LLDB Neovim Frontend
 
+**Note: This project is no longer actively maintained.** See [this comment][] for details.
+
+[this comment]: https://github.com/dbgx/lldb.nvim/issues/51#issuecomment-294894345
+
 This plugin provides LLDB debugger integration for Neovim ([demo gif][]) featuring:
 
 * Elaborate view of debugger state
